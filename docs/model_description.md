@@ -121,3 +121,36 @@ All outputs are recorded daily and stratified by age, region and vaccination sta
 | `inc_infections`, `inc_hosp`, `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths` | new infections / admissions / deaths during day $(t-1, t]$ |
 
 Initial infections (`I0`, `E0`) are not counted in `cum_infections` or `inc_infections`.
+
+## Fitting to hospital admissions
+
+`fit_model()` estimates `R0`, and optionally `hosp_scale` and `nb_size` (see `fit_parameters()`), from observed daily hospital admissions. All other parameters stay fixed at the values in the model you pass in.
+
+**Observation model.** Data can be one national series, or several series by region and/or age. For series $k$ on day $t$, the modelled admissions are
+
+$$
+\mu_k(t) = \sum_g \text{obs\_map}_{kg} \sum_v \text{inc\_hosp}_{gv}(t),
+$$
+
+where `obs_map[k, g]` is 1 if group $g$ belongs to series $k$. Observed admissions are assumed to be $\text{NegBin}(\text{size} = \text{nb\_size},\ \text{mean} = \mu_k(t))$. A smaller `nb_size` means noisier data; the variance is $\mu + \mu^2/\text{nb\_size}$. Missing values (`NA`) are skipped. The comparison is at the end of both odin files, and when the model is only simulated it's ignored.
+
+**Fitted parameters.**
+- **`R0`:** β is recalibrated from R0 with the next-generation matrix, exactly as in `build_model()`.
+- **`hosp_scale`:** multiplies `p_hosp` in every group and in both vaccination strata, capped at 1.
+- **`nb_size`:** the dispersion above.
+
+With data from the early exponential phase only, the growth rate (and so R0) is well identified. The *level* of admissions is not: a larger `hosp_scale` can be traded against fewer or later initial infections. Fit `hosp_scale` only when the data covers more of the epidemic, or when the seeding is well known.
+
+**Methods.**
+
+| `method` | Likelihood | Algorithm | Uncertainty |
+|---|---|---|---|
+| `"optim"` | deterministic model | `stats::optim` (L-BFGS-B) to the maximum a posteriori | normal approximation from the curvature at the optimum |
+| `"mcmc"` | deterministic model | monty's adaptive random-walk sampler, started at the `optim` estimate and proposal | posterior samples |
+| `"pmcmc"` | stochastic model: particle filter with `n_particles` particles | monty random walk, proposal from the `optim` curvature | posterior samples, including the epidemic's own randomness |
+
+With default uniform priors, the `optim` estimate is the maximum likelihood estimate within the prior range.
+
+**Time alignment.** Day 0 of the data is time 0 of the model, and `admissions` on day `t` are admissions during day $(t-1, t]$. If the epidemic started before the data, choose the model's seeding (`I0`) to match. Fitting the start date isn't supported yet.
+
+**Projections.** `project_fit()` and `plot(fit)` re-run the model for parameter draws: posterior samples, or draws from the normal approximation for `optim`. Each draw starts again from time 0. For `pmcmc` fits, projections are therefore not conditioned on the particular stochastic path that the data followed.

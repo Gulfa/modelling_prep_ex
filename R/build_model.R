@@ -157,7 +157,11 @@ build_model <- function(N,
     I_ini = vs(I0, 0),
     R_ini = zero,
     beta_time = sched$time,
-    beta_mult_value = sched$value)
+    beta_mult_value = sched$value,
+    # Observation model, only used when fitting (fit_model() replaces these)
+    n_obs = 1L,
+    obs_map = matrix(1, 1, n_group),
+    nb_size = 10)
 
   N_group <- as.vector(N)
   if (is.null(beta)) {

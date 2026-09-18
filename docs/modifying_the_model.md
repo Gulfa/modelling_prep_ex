@@ -19,6 +19,7 @@ The R layer takes care of the rest:
 | `R/r0.R` | next-generation matrix, R0 and R_eff |
 | `R/run.R` | creates and runs the dust2 system, reshapes output to `[age, region, vacc_status, sim, time]` |
 | `R/output.R`, `R/summary_plot.R` | `get_output()`, `summary()`, `plot()` |
+| `R/fit.R` | `fit_model()`: data preparation, priors, likelihoods and samplers; the table of fittable parameters |
 
 ## Development setup
 
@@ -101,6 +102,49 @@ Then:
 - in `R/r0.R`, multiply `trans` by `(1 - p_asymp) + p_asymp * rel_inf_asymp` inside the next-generation matrix (asymptomatic and symptomatic periods are equally long here);
 - regenerate, document and test.
 
+## Adding a fittable parameter
+
+The parameters `fit_model()` can estimate are listed in `fit_param_specs` at the top of `R/fit.R`. Each entry has:
+
+| Field | Meaning |
+|---|---|
+| `prior` | default prior, as a monty distribution string |
+| `description` | shown by `fit_parameters()` |
+| `initial` | starting value, `function(model, nb_size)` |
+| `apply` | how a value maps onto backend (odin) parameters, `function(value, ctx)` returning a named list |
+| `rebuild` | how a value maps onto `build_model()` arguments, `function(args, value)`; used to build `fit$model` and projections |
+
+Say you want to fit the latent period. Add:
+
+```r
+latent_period = list(
+  prior = "Uniform(1, 7)",
+  description = "Mean latent period (days)",
+  initial = function(model, nb_size) 1 / model$pars$sigma,
+  apply = function(value, ctx) list(sigma = 1 / value),
+  rebuild = function(args, value) {
+    args$latent_period <- value
+    args
+  })
+```
+
+- `apply` must only set parameters that exist in the odin model. Anything it sets is automatically removed from the fixed parameters.
+- If the fitted name is itself an odin parameter (like `nb_size`), `apply` returns `list()`.
+- `apply` must be consistent with `rebuild`. The `fit` tests check this for `R0` and `hosp_scale`; add a similar recovery test (simulate noise-free data, fit, compare) for the new parameter.
+- If the parameter affects R0 (for example `infectious_period`), `apply` must also recompute `beta`, because `R0` calibration happens in R. `ctx$beta_per_R0` is only valid while the other parameters are unchanged.
+
+## Changing the observation model
+
+The comparison with data is the last block of both odin files: `admissions <- data()` and `admissions[] ~ NegativeBinomial(...)`. To fit to a different quantity, for example deaths:
+
+1. Change `model_admissions` in both files to sum `inc_deaths_hosp + inc_deaths_comm` instead.
+2. Regenerate the code.
+3. Rename the data column where `R/fit.R` checks and builds `admissions`.
+
+To fit two data streams at once, add a second `data()` and `~` line.
+
+**odin2 pitfall:** a literal whole number inside a `~` comparison, such as `NegativeBinomial(size = 10, ...)`, fails to compile ("deduced conflicting types ‘double’ and ‘int’"). Make the value a `parameter()` instead, as is done for `nb_size`.
+
 ## Useful odin2 syntax
 
 | Syntax | Meaning |
@@ -112,5 +156,6 @@ Then:
 | `sum(x[i, ])` | partial sums |
 | `initial(x[, ], zero_every = 1) <- 0` | reset every day (daily incidence) |
 | `interpolate(t, y, "constant")` | piecewise-constant time-varying input |
+| `x <- data()`, `x ~ Poisson(mu)` | data and its likelihood (used by dust2 filters) |
 
 See the [odin2 documentation](https://mrc-ide.github.io/odin2/) and the [dust2 documentation](https://mrc-ide.github.io/dust2/) for more.

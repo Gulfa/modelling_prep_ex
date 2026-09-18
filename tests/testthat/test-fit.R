@@ -1,0 +1,95 @@
+# Noise-free admissions from the deterministic model
+det_admissions <- function(model, t_max, by = character(0)) {
+  d <- get_output(run_model(model, t_max = t_max), "inc_hosp", by = by)[time > 0]
+  d[, admissions := round(value)]
+  d[, c("time", by, "admissions"), with = FALSE]
+}
+
+test_that("prepare_fit_data builds series, obs_map and dust2 data", {
+  m <- small_model()
+  d <- data.frame(time = c(1, 1, 2, 3), region = c("A", "B", "A", "B"),
+                  admissions = c(0, 1, 2, 3))
+  obs <- prepare_fit_data(d, m)
+  expect_equal(obs$series$label, c("A", "B"))
+  # groups: young A, old A, young B, old B
+  expect_equal(obs$obs_map, rbind(c(1, 1, 0, 0), c(0, 0, 1, 1)))
+  expect_equal(obs$data_dust$time, 1:3)
+  expect_equal(obs$data_dust$admissions[[2]], c(2, NA))
+
+  national <- prepare_fit_data(data.frame(time = 1:3, admissions = 0), m)
+  expect_equal(national$obs_map, matrix(1, 1, 4))
+
+  expect_error(prepare_fit_data(data.frame(time = 0, admissions = 1), m), ">= 1")
+  expect_error(prepare_fit_data(data.frame(time = 1, admissions = 1.5), m), "whole")
+  expect_error(prepare_fit_data(data.frame(time = 1, admissions = 1, region = "X"), m),
+               "Unknown region")
+  expect_error(prepare_fit_data(data.frame(time = c(1, 1), admissions = 1), m),
+               "more than one row")
+})
+
+test_that("optim recovers R0 from noise-free data", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 150)
+  fit <- fit_model(update_model(truth, R0 = 2.5), d)
+  expect_equal(fit$estimates$estimate, 1.7, tolerance = 0.01)
+  expect_equal(R0(fit$model), fit$estimates$estimate)
+  expect_true(fit$estimates$lower < 1.7 && fit$estimates$upper > 1.7)
+})
+
+test_that("optim recovers R0 and hosp_scale from regional data", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(update_model(truth, p_hosp = c(0.02, 0.2)), 150,
+                      by = "region")
+  fit <- fit_model(truth, d, pars = c("R0", "hosp_scale"))
+  expect_equal(fit$estimates$estimate, c(1.7, 2), tolerance = 0.02)
+  expect_equal(fit$model$pars$p_hosp[, 1], rep(c(0.01, 0.1), 2) * fit$estimates$estimate[2])
+})
+
+test_that("custom priors and starting values are used", {
+  m <- small_model()
+  d <- det_admissions(m, 60)
+  fit <- fit_model(m, d, prior = c(R0 = "Uniform(1.9, 3)"), initial = c(R0 = 2.5))
+  expect_gte(fit$estimates$estimate, 1.9)   # truth (2) is near the prior edge
+  expect_error(fit_model(m, d, prior = c(beta = "Uniform(0, 1)")), "named")
+  expect_error(fit_model(m, d, pars = "gamma"), "one or more of")
+  expect_error(fit_model(m, d, initial = c(R0 = 10)), "zero prior")
+})
+
+test_that("mcmc returns samples around the truth", {
+  truth <- small_model(R0 = 1.7)
+  set.seed(1)
+  d <- det_admissions(truth, 120)
+  d[, admissions := rnbinom(.N, size = 10, mu = admissions + 0.1)]
+  fit <- suppressMessages(fit_model(truth, d, pars = c("R0", "nb_size"),
+                                    method = "mcmc", n_steps = 400,
+                                    n_chains = 2, seed = 1))
+  expect_equal(dim(fit$samples$pars), c(2, 300, 2))
+  est <- fit$estimates
+  expect_true(est$lower[1] < 1.7 && est$upper[1] > 1.7)
+  expect_gt(fit$acceptance, 0.05)
+  expect_equal(fit$nb_size, est$estimate[2])
+})
+
+test_that("pmcmc runs on the stochastic model", {
+  truth <- build_model(N = 20000, R0 = 2, I0 = 20, p_hosp = 0.05)
+  d <- det_admissions(truth, 40)
+  fit <- suppressMessages(fit_model(truth, d, method = "pmcmc", n_steps = 20,
+                                    n_chains = 1, n_particles = 20, dt = 0.25,
+                                    seed = 1))
+  expect_equal(dim(fit$samples$pars), c(1, 15, 1))
+  expect_true(all(is.finite(fit$samples$density)))
+})
+
+test_that("projections, plots and printing work", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 60, by = "region")
+  fit <- fit_model(truth, d)
+  p <- project_fit(fit, t_max = 100, n_draws = 5, by = "region")
+  expect_equal(sort(unique(p$draw)), 1:5)
+  expect_equal(max(p$time), 100)
+  expect_s3_class(plot(fit, n_draws = 5), "ggplot")
+  expect_error(plot(fit, "trace"), "No MCMC samples")
+  expect_output(print(fit), "maximum a posteriori")
+  expect_equal(summary(fit), fit$estimates)
+  expect_setequal(fit_parameters()$name, c("R0", "hosp_scale", "nb_size"))
+})

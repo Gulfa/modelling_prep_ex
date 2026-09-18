@@ -2,6 +2,7 @@
 #include <dust2/common.hpp>
 // [[dust2::class(seir_ode)]]
 // [[dust2::time_type(continuous)]]
+// [[dust2::has_compare()]]
 // [[dust2::parameter(n_group, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(n_beta_time, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(beta, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
@@ -20,6 +21,9 @@
 // [[dust2::parameter(R_ini, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_mult_value, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(n_obs, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
+// [[dust2::parameter(obs_map, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(nb_size, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
 class seir_ode {
 public:
   seir_ode() = delete;
@@ -47,12 +51,18 @@ public:
       dust2::array::dimensions<1> lambda;
       dust2::array::dimensions<2> n_SE;
       dust2::array::dimensions<2> S;
+      dust2::array::dimensions<2> obs_map;
+      dust2::array::dimensions<2> adm_contrib;
+      dust2::array::dimensions<1> model_admissions;
+      dust2::array::dimensions<1> admissions;
     } dim;
     int n_group;
     int n_beta_time;
     real_type beta;
     real_type sigma;
     real_type gamma;
+    int n_obs;
+    real_type nb_size;
     std::vector<real_type> contact;
     std::vector<real_type> sus;
     std::vector<real_type> trans;
@@ -66,6 +76,7 @@ public:
     std::vector<real_type> R_ini;
     std::vector<real_type> beta_time;
     std::vector<real_type> beta_mult_value;
+    std::vector<real_type> obs_map;
     dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_beta_mult;
   };
   struct internal_state {
@@ -81,8 +92,12 @@ public:
     std::vector<real_type> contact_prev;
     std::vector<real_type> lambda;
     std::vector<real_type> n_SE;
+    std::vector<real_type> adm_contrib;
+    std::vector<real_type> model_admissions;
   };
-  using data_type = dust2::no_data;
+  struct data_type {
+    std::vector<real_type> admissions;
+  };
   static dust2::packing packing_state(const shared_state& shared) {
     return shared.odin.packing.state;
   }
@@ -93,6 +108,8 @@ public:
     const real_type beta = dust2::r::read_real(parameters, "beta");
     const real_type sigma = dust2::r::read_real(parameters, "sigma");
     const real_type gamma = dust2::r::read_real(parameters, "gamma");
+    const int n_obs = dust2::r::read_int(parameters, "n_obs");
+    const real_type nb_size = dust2::r::read_real(parameters, "nb_size");
     dim.contact.set({static_cast<size_t>(n_group), static_cast<size_t>(n_group)});
     dim.sus.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
     dim.S_ini.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
@@ -105,6 +122,10 @@ public:
     dim.lambda.set({static_cast<size_t>(n_group)});
     dim.n_SE.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
     dim.S.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
+    dim.obs_map.set({static_cast<size_t>(n_obs), static_cast<size_t>(n_group)});
+    dim.adm_contrib.set({static_cast<size_t>(n_obs), static_cast<size_t>(n_group)});
+    dim.model_admissions.set({static_cast<size_t>(n_obs)});
+    dim.admissions.set({static_cast<size_t>(n_obs)});
     std::vector<real_type> contact(dim.contact.size);
     dust2::r::read_real_array(parameters, dim.contact, contact.data(), "contact", true);
     std::vector<real_type> sus(dim.sus.size);
@@ -131,6 +152,8 @@ public:
     dust2::r::read_real_array(parameters, dim.beta_time, beta_time.data(), "beta_time", true);
     std::vector<real_type> beta_mult_value(dim.beta_mult_value.size);
     dust2::r::read_real_array(parameters, dim.beta_mult_value, beta_mult_value.data(), "beta_mult_value", true);
+    std::vector<real_type> obs_map(dim.obs_map.size);
+    dust2::r::read_real_array(parameters, dim.obs_map, obs_map.data(), "obs_map", true);
     const auto interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(beta_time, beta_mult_value, dim.beta_mult, "beta_time", "beta_mult_value");
     shared_state::odin_internals_type odin;
     odin.packing.state = dust2::packing{
@@ -149,7 +172,7 @@ public:
       {"inc_deaths_comm", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())}
     };
     odin.packing.state.copy_offset(odin.offset.state.begin());
-    return shared_state{odin, dim, n_group, n_beta_time, beta, sigma, gamma, contact, sus, trans, p_hosp, p_death_comm, p_death_hosp, dur_hosp, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, interpolate_beta_mult};
+    return shared_state{odin, dim, n_group, n_beta_time, beta, sigma, gamma, n_obs, nb_size, contact, sus, trans, p_hosp, p_death_comm, p_death_hosp, dur_hosp, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, obs_map, interpolate_beta_mult};
   }
   static internal_state build_internal(const shared_state& shared) {
     std::vector<real_type> N(shared.dim.N.size);
@@ -164,12 +187,20 @@ public:
     std::vector<real_type> contact_prev(shared.dim.contact_prev.size);
     std::vector<real_type> lambda(shared.dim.lambda.size);
     std::vector<real_type> n_SE(shared.dim.n_SE.size);
-    return internal_state{N, n_EI, n_I_out, prev, n_IH, n_H_out, n_ID, n_HD, beta_mult, contact_prev, lambda, n_SE};
+    std::vector<real_type> adm_contrib(shared.dim.adm_contrib.size);
+    std::vector<real_type> model_admissions(shared.dim.model_admissions.size);
+    return internal_state{N, n_EI, n_I_out, prev, n_IH, n_H_out, n_ID, n_HD, beta_mult, contact_prev, lambda, n_SE, adm_contrib, model_admissions};
+  }
+  static data_type build_data(cpp11::list data, const shared_state& shared) {
+    auto admissions = std::vector<real_type>(shared.dim.admissions.size);
+    dust2::r::read_real_array(data, shared.dim.admissions, admissions.data(), "admissions", true);
+    return data_type{admissions};
   }
   static void update_shared(cpp11::list parameters, shared_state& shared) {
     shared.beta = dust2::r::read_real(parameters, "beta", shared.beta);
     shared.sigma = dust2::r::read_real(parameters, "sigma", shared.sigma);
     shared.gamma = dust2::r::read_real(parameters, "gamma", shared.gamma);
+    shared.nb_size = dust2::r::read_real(parameters, "nb_size", shared.nb_size);
     dust2::r::read_real_array(parameters, shared.dim.contact, shared.contact.data(), "contact", false);
     dust2::r::read_real_array(parameters, shared.dim.sus, shared.sus.data(), "sus", false);
     dust2::r::read_real_array(parameters, shared.dim.sus, shared.trans.data(), "trans", false);
@@ -183,6 +214,7 @@ public:
     dust2::r::read_real_array(parameters, shared.dim.S_ini, shared.R_ini.data(), "R_ini", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_time, shared.beta_time.data(), "beta_time", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_mult_value, shared.beta_mult_value.data(), "beta_mult_value", false);
+    dust2::r::read_real_array(parameters, shared.dim.obs_map, shared.obs_map.data(), "obs_map", false);
     shared.interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.beta_time, shared.beta_mult_value, shared.dim.beta_mult, "beta_time", "beta_mult_value");
   }
   static void update_internal(const shared_state& shared, internal_state& internal) {
@@ -378,5 +410,22 @@ public:
   }
   static auto zero_every(const shared_state& shared) {
     return dust2::zero_every_type<real_type>{{1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[9])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[10])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[11])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[12])}}};
+  }
+  static real_type compare_data(real_type time, const real_type* state, const data_type& data, const shared_state& shared, internal_state& internal, rng_state_type& rng_state) {
+    auto unless_nan = [](real_type x) { return std::isnan(x) ? 0 : x; };
+    const auto * inc_hosp = state + shared.odin.offset.state[10];
+    real_type odin_ll = 0;
+    for (size_t i = 1; i <= shared.dim.adm_contrib.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.adm_contrib.dim[1]; ++j) {
+        internal.adm_contrib[i - 1 + (j - 1) * shared.dim.adm_contrib.mult[1]] = shared.obs_map[i - 1 + (j - 1) * shared.dim.obs_map.mult[1]] * (inc_hosp[j - 1] + inc_hosp[j - 1 + shared.dim.S.mult[1]]);
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.model_admissions.size; ++i) {
+      internal.model_admissions[i - 1] = dust2::array::sum<real_type>(internal.adm_contrib.data(), shared.dim.adm_contrib, {i - 1, i - 1}, {0, shared.dim.adm_contrib.dim[1] - 1});
+    }
+    for (size_t i = 1; i <= shared.dim.admissions.size; ++i) {
+      odin_ll += unless_nan(monty::density::negative_binomial_mu(data.admissions[i - 1], shared.nb_size, internal.model_admissions[i - 1] + static_cast<real_type>(9.9999999999999995e-07), true));
+    }
+    return odin_ll;
   }
 };

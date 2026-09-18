@@ -11,4 +11,6 @@
 
 # data.table non-standard evaluation
 utils::globalVariables(c(".", "value", "variable", "time", "sim", "measure",
-                         "median", "lower", "upper", ".SD", ".trace"))
+                         "median", "lower", "upper", ".SD", ".trace",
+                         ".N", "draw", "predicted", "pred_lower", "pred_upper",
+                         "admissions", "series", "step", "chain"))

@@ -106,3 +106,21 @@ deriv(inc_infections[, ]) <- n_SE[i, j]
 deriv(inc_hosp[, ]) <- n_IH[i, j]
 deriv(inc_deaths_hosp[, ]) <- n_HD[i, j]
 deriv(inc_deaths_comm[, ]) <- n_ID[i, j]
+
+## ---- Comparison to data (used only when fitting) --------------------------
+# Observed daily hospital admissions, as n_obs series. obs_map[k, g] = 1 if
+# group g contributes to series k (built in R from the data's region / age
+# columns; by default one national series).
+n_obs  <- parameter(type = "integer", constant = TRUE)
+obs_map <- parameter()
+dim(obs_map) <- c(n_obs, n_group)
+nb_size <- parameter()   # negative binomial dispersion (larger = less noise)
+
+adm_contrib[, ] <- obs_map[i, j] * (inc_hosp[j, 1] + inc_hosp[j, 2])
+dim(adm_contrib) <- c(n_obs, n_group)
+model_admissions[] <- sum(adm_contrib[i, ])
+dim(model_admissions) <- n_obs
+
+admissions <- data()
+dim(admissions) <- n_obs
+admissions[] ~ NegativeBinomial(size = nb_size, mu = model_admissions[i] + 1e-6)

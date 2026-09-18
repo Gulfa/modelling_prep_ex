@@ -7,6 +7,7 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 - Hospitalisation, **hospital deaths** and **community deaths**.
 - **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups.
 - A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
+- **Fitting to daily hospital admissions** (national, or by region or age): a quick point estimate, MCMC, or particle MCMC, using [monty](https://mrc-ide.github.io/monty/).
 
 ## Installation
 
@@ -50,6 +51,15 @@ get_output(det, vars = "inc_hosp", by = c("age", "vacc_status"))   # tidy data.t
 m2 <- update_model(m, ve_hosp = 0.5)       # a scenario variant
 ```
 
+Fitting R0 to daily admissions (a data.frame with columns `time` and `admissions`):
+
+```r
+fit <- fit_model(m, data, pars = "R0", method = "mcmc")
+fit                                        # estimates with 95% intervals
+plot(fit, t_max = 200)                     # data, fit and projection
+run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
+```
+
 ## Main functions
 
 | Function | Purpose |
@@ -61,6 +71,9 @@ m2 <- update_model(m, ve_hosp = 0.5)       # a scenario variant
 | `summary()` | Totals and peaks (with intervals for stochastic runs) |
 | `plot()` | Plot one variable over time |
 | `R0()`, `R_eff()` | Reproduction numbers from the next-generation matrix |
+| `fit_model()` | Fit `R0` (and optionally `hosp_scale`, `nb_size`) to daily hospital admissions |
+| `fit_parameters()` | Parameters that can be fitted, with default priors |
+| `project_fit()` | Run the model over posterior draws, e.g. to project beyond the data |
 | `example_data()` | Made-up example population, contact matrices and parameters |
 
 Parameters can be given as a single value, a vector by age group, a vector by region, or an age × region matrix. See `?build_model`.
@@ -73,6 +86,7 @@ The scripts in [`examples/`](examples/) are the best place to start:
 2. [`02_age_structured.R`](examples/02_age_structured.R): age mixing, susceptibility, severity and vaccine effectiveness by age.
 3. [`03_age_and_region.R`](examples/03_age_and_region.R): combined age and region mixing, regional seeding, global and targeted interventions.
 4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios.
+5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
 
 ## Documentation
 
