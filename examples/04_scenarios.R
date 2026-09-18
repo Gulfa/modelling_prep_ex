@@ -3,6 +3,10 @@
 ## A typical exercise workflow: define a baseline, vary one thing at a time
 ## with update_model(), run each scenario stochastically and compare key
 ## outcomes in a table and a plot.
+##
+## Run line by line (e.g. Ctrl+Enter in RStudio), or with
+##   source("examples/04_scenarios.R", echo = TRUE)
+## so that tables and plots are shown.
 
 library(seirvax)
 library(data.table)
@@ -46,8 +50,8 @@ h <- rbindlist(lapply(names(runs), function(s) {
 h <- h[, .(median = median(value),
            lower = quantile(value, 0.025), upper = quantile(value, 0.975)),
        by = .(scenario, time)]
-print(ggplot(h, aes(time, median, colour = scenario, fill = scenario)) +
-        geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
-        geom_line() +
-        geom_hline(yintercept = 400, linetype = 2) +   # e.g. hospital capacity
-        labs(x = "Day", y = "Hospital occupancy") + theme_bw())
+ggplot(h, aes(time, median, colour = scenario, fill = scenario)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+  geom_line() +
+  geom_hline(yintercept = 400, linetype = 2) +   # e.g. hospital capacity
+  labs(x = "Day", y = "Hospital occupancy") + theme_bw()

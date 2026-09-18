@@ -4,6 +4,10 @@
 ## combined with a region mixing matrix M_region, where M_region[r, s] is the
 ## fraction of a region-r resident's contacts made with residents of region s.
 ## The epidemic is seeded in one region and a regional lockdown is added.
+##
+## Run line by line (e.g. Ctrl+Enter in RStudio), or with
+##   source("examples/03_age_and_region.R", echo = TRUE)
+## so that tables and plots are shown.
 
 library(seirvax)
 library(data.table)
@@ -34,7 +38,7 @@ m <- build_model(
 m
 
 res <- run_model(m, t_max = 300)
-print(plot(res, var = "inc_infections", by = "region"))
+plot(res, var = "inc_infections", by = "region")
 summary(res, by = "region")
 
 # ---- Contact multipliers (beta_schedule) -------------------------------------
@@ -63,12 +67,12 @@ h <- rbind(
   get_output(res_global, "H", by = "region")[, scenario := "global"],
   get_output(res_target, "H", by = "region")[, scenario := "targeted"])
 library(ggplot2)
-print(ggplot(h, aes(time, value, colour = scenario)) +
-        geom_line() + facet_wrap(~region, scales = "free_y") +
-        labs(x = "Day", y = "Hospital occupancy") + theme_bw())
+ggplot(h, aes(time, value, colour = scenario)) +
+  geom_line() + facet_wrap(~region, scales = "free_y") +
+  labs(x = "Day", y = "Hospital occupancy") + theme_bw()
 
 # ---- Stochastic version: early fade-out is possible --------------------------
 sto <- run_model(m, "stochastic", t_max = 300, n_sim = 100, seed = 1, n_threads = 4)
-print(plot(sto, var = "H", by = "region", n_traces = 20))
+plot(sto, var = "H", by = "region", n_traces = 20)
 final <- get_output(sto, "cum_infections")[time == 300]
 mean(final$value < 1000)      # fraction of simulations where the epidemic died out

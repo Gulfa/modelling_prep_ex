@@ -2,6 +2,10 @@
 ##
 ## Four age groups with an age contact matrix, age-specific susceptibility and
 ## severity, and initial vaccination coverage with age-specific VE.
+##
+## Run line by line (e.g. Ctrl+Enter in RStudio), or with
+##   source("examples/02_age_structured.R", echo = TRUE)
+## so that tables and plots are shown.
 
 library(seirvax)
 library(data.table)
@@ -28,8 +32,8 @@ m                                           # note R_eff(0) < R0 due to vaccinat
 
 res <- run_model(m, t_max = 300)
 summary(res, by = "age")
-print(plot(res, var = "inc_hosp", by = "age"))
-print(plot(res, var = "H", by = c("vacc_status", "age")))
+plot(res, var = "inc_hosp", by = "age")
+plot(res, var = "H", by = c("vacc_status", "age"))
 
 # Who is hospitalised? Admissions by age and vaccination status
 adm <- get_output(res, "cum_hosp", by = c("age", "vacc_status"))[time == 300]

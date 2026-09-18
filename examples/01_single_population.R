@@ -3,6 +3,10 @@
 ## The simplest use of the model: one group, no age or region structure.
 ## Shows how to build a model, run the deterministic and stochastic versions,
 ## and look at the results.
+##
+## Run line by line (e.g. Ctrl+Enter in RStudio), or with
+##   source("examples/01_single_population.R", echo = TRUE)
+## so that tables and plots are shown.
 
 library(seirvax)
 
@@ -23,13 +27,13 @@ m
 # ---- Deterministic run ------------------------------------------------------
 det <- run_model(m, type = "deterministic", t_max = 250)
 summary(det)
-print(plot(det, var = "inc_infections"))
-print(plot(det, var = "H"))           # hospital occupancy
+plot(det, var = "inc_infections")
+plot(det, var = "H")           # hospital occupancy
 
 # ---- Stochastic run ---------------------------------------------------------
 sto <- run_model(m, type = "stochastic", t_max = 250, n_sim = 100, seed = 1)
 summary(sto)                          # mean, median and 95% interval
-print(plot(sto, var = "H", n_traces = 20))
+plot(sto, var = "H", n_traces = 20)
 
 # ---- Working with the output directly ----------------------------------------
 # get_output() returns a data.table in long format: time, sim, variable, value
