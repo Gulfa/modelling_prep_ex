@@ -1,0 +1,89 @@
+#' Run a model
+#'
+#' Runs the deterministic (ODE) or stochastic (tau-leaping) version of the
+#' model and returns daily output from time 0 to `t_max`.
+#'
+#' @param model A model from [build_model()].
+#' @param type `"deterministic"` or `"stochastic"`.
+#' @param t_max Number of days to simulate.
+#' @param n_sim Number of stochastic simulations (ignored for deterministic).
+#' @param dt Time step (days) of the stochastic model; must divide one day
+#'   evenly. The discrete-time approximation lengthens every stage by about
+#'   `dt / 2` on average, which makes epidemics slightly larger than in the
+#'   deterministic model (about +0.7% infections at `dt = 0.1` and +1.7% at
+#'   `0.25` for R0 = 2). Smaller is more accurate but slower.
+#' @param seed Random seed for the stochastic model (`NULL` = random).
+#' @param n_threads Number of threads used to run stochastic simulations in
+#'   parallel.
+#' @param vars Output variables to keep (default: all, see [get_output()]).
+#'   Keeping fewer saves memory for large stochastic runs; `summary()` needs
+#'   `cum_infections`, `cum_hosp`, `D` and `H`.
+#'
+#' @return An object of class `seirvax_run`. Use [get_output()] to extract
+#'   results as a table, and `summary()` / `plot()` to look at them.
+#' @export
+#' @examples
+#' m <- build_model(N = 1e5, R0 = 2, I0 = 10, p_hosp = 0.02)
+#' res <- run_model(m, t_max = 200)
+#' res_s <- run_model(m, "stochastic", t_max = 200, n_sim = 20, seed = 1)
+run_model <- function(model, type = c("deterministic", "stochastic"),
+                      t_max = 365, n_sim = 100, dt = 0.1, seed = NULL,
+                      n_threads = 1, vars = NULL) {
+  if (!inherits(model, "seirvax_model")) {
+    stop("'model' must be created with build_model()")
+  }
+  type <- match.arg(type)
+  check_range(t_max, "t_max", min_open = TRUE)
+  times <- seq(0, ceiling(t_max))
+
+  if (type == "deterministic") {
+    n_sim <- 1L
+    sys <- dust2::dust_system_create(seir_ode(), model$pars)
+  } else {
+    check_range(n_sim, "n_sim", min = 1)
+    check_range(dt, "dt", min_open = TRUE, max = 1)
+    if (abs(1 / dt - round(1 / dt)) > 1e-8) {
+      stop("'dt' must divide one day evenly (e.g. 1, 0.5, 0.25, 0.1)")
+    }
+    n_sim <- as.integer(n_sim)
+    sys <- dust2::dust_system_create(seir_stoch(), model$pars,
+                                     n_particles = n_sim, dt = dt,
+                                     seed = seed, n_threads = n_threads)
+  }
+  dust2::dust_system_set_state_initial(sys)
+  y <- dust2::dust_system_simulate(sys, times)
+  raw <- dust2::dust_unpack_state(sys, y)
+
+  # [group, vacc, (sim), time] -> [age, region, vacc_status, sim, time]
+  dn <- list(age = model$dims$age, region = model$dims$region,
+             vacc_status = c("unvaccinated", "vaccinated"),
+             sim = seq_len(n_sim), time = times)
+  d <- lengths(dn, use.names = FALSE)
+  states <- lapply(raw, function(x) array(x, d, dn))
+  states$D <- states$D_hosp + states$D_comm
+  states$inc_deaths <- states$inc_deaths_hosp + states$inc_deaths_comm
+  if (!is.null(vars)) {
+    unknown <- setdiff(vars, names(states))
+    if (length(unknown) > 0) {
+      stop(sprintf("Unknown variable(s): %s. Available: %s",
+                   paste(unknown, collapse = ", "),
+                   paste(names(states), collapse = ", ")))
+    }
+    states <- states[vars]
+  }
+
+  structure(list(model = model, type = type, time = times, n_sim = n_sim,
+                 dt = if (type == "stochastic") dt else NA_real_,
+                 states = states),
+            class = "seirvax_run")
+}
+
+#' @export
+print.seirvax_run <- function(x, ...) {
+  cat(sprintf("<seirvax_run> %s, %d day(s)%s\n", x$type, max(x$time),
+              if (x$type == "stochastic")
+                sprintf(", %d simulation(s), dt = %g", x$n_sim, x$dt) else ""))
+  cat(sprintf("  Variables: %s\n", paste(names(x$states), collapse = ", ")))
+  cat("  Use get_output(), summary() and plot() to look at the results\n")
+  invisible(x)
+}

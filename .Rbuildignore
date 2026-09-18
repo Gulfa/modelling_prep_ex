@@ -1,0 +1,8 @@
+^\.Rlib$
+^dev$
+^docs$
+^examples$
+^\.git$
+^\.gitignore$
+^.*\.Rproj$
+^\.Rproj\.user$

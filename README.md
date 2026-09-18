@@ -1,0 +1,81 @@
+# seirvax
+
+An SEIR model with hospitalisation, death and vaccination, built for preparedness exercises.
+
+- Stratified by **age group** and **region**. Age and region contact matrices are combined into one contact structure.
+- Has a **vaccinated stratum** that runs in parallel with the unvaccinated one. Vaccine effectiveness against infection, onward transmission, hospitalisation and death can vary by age.
+- Hospitalisation, **hospital deaths** and **community deaths**.
+- **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups.
+- A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
+
+## Installation
+
+The package needs `dust2` and `monty` from the mrc-ide r-universe, and a C++ compiler to build it.
+
+```r
+install.packages(c("dust2", "monty", "data.table", "ggplot2", "remotes"),
+                 repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
+remotes::install_local("path/to/modelling_prep_ex")
+```
+
+To use the FHI R container instead, see [`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).
+
+## Quick start
+
+```r
+library(seirvax)
+
+ex <- example_data()                      # made-up example inputs (4 ages x 3 regions)
+
+m <- build_model(
+  N = ex$N, C_age = ex$C_age, M_region = ex$M_region,
+  R0 = 2,
+  susceptibility = ex$epi$susceptibility,
+  p_hosp = ex$epi$p_hosp,
+  p_death_hosp = ex$epi$p_death_hosp,
+  p_death_comm = ex$epi$p_death_comm,
+  vacc_coverage = ex$epi$vacc_coverage,
+  ve_infection = 0.4, ve_hosp = 0.7, ve_death = 0.5,
+  I0 = 5,
+  beta_schedule = data.frame(time = c(60, 120), mult = c(0.6, 1)))
+m                                          # parameters, R0 and R_eff(0)
+
+det <- run_model(m, "deterministic", t_max = 300)
+sto <- run_model(m, "stochastic", t_max = 300, n_sim = 100, seed = 1)
+
+summary(sto, by = "age")                   # infections, admissions, deaths, peak occupancy
+plot(sto, var = "H", by = "region")        # hospital occupancy by region
+get_output(det, vars = "inc_hosp", by = c("age", "vacc_status"))   # tidy data.table
+
+m2 <- update_model(m, ve_hosp = 0.5)       # a scenario variant
+```
+
+## Main functions
+
+| Function | Purpose |
+|---|---|
+| `build_model()` | Set all parameters; returns a model object (nothing is simulated) |
+| `update_model()` | Copy of a model with some parameters changed |
+| `run_model()` | Run the `"deterministic"` or `"stochastic"` version |
+| `get_output()` | Results as a long `data.table`, summed to the strata you choose (`by`) |
+| `summary()` | Totals and peaks (with intervals for stochastic runs) |
+| `plot()` | Plot one variable over time |
+| `R0()`, `R_eff()` | Reproduction numbers from the next-generation matrix |
+| `example_data()` | Made-up example population, contact matrices and parameters |
+
+Parameters can be given as a single value, a vector by age group, a vector by region, or an age × region matrix. See `?build_model`.
+
+## Examples
+
+The scripts in [`examples/`](examples/) are the best place to start:
+
+1. [`01_single_population.R`](examples/01_single_population.R): one group, deterministic vs. stochastic.
+2. [`02_age_structured.R`](examples/02_age_structured.R): age mixing, susceptibility, severity and vaccine effectiveness by age.
+3. [`03_age_and_region.R`](examples/03_age_and_region.R): combined age and region mixing, regional seeding, global and targeted interventions.
+4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios.
+
+## Documentation
+
+- [`docs/model_description.md`](docs/model_description.md): model structure, equations, assumptions and known limitations.
+- [`docs/modifying_the_model.md`](docs/modifying_the_model.md): how the code is organised, and how to change the model, with a worked example.
+- Function help: `?build_model`, `?run_model`, `?get_output`, and so on.

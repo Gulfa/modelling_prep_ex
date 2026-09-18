@@ -1,0 +1,26 @@
+Package: seirvax
+Title: SEIR Model with Hospitalisation, Death and Vaccination for Preparedness Exercises
+Version: 0.1.0
+Authors@R: person("Gunnar", "Rø", email = "gunnarroe@gmail.com", role = c("aut", "cre"))
+Description: Deterministic (ODE) and stochastic (tau-leaping) SEIR models with
+    hospitalisation, community and hospital deaths, and a parallel vaccinated
+    stratum, stratified by age group and region. Models are written in odin2
+    and run with dust2; simple R wrappers build, run, summarise and plot them.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.0
+Imports:
+    data.table,
+    dust2,
+    ggplot2,
+    stats
+LinkingTo:
+    cpp11,
+    dust2,
+    monty
+Suggests:
+    odin2,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Additional_repositories: https://mrc-ide.r-universe.dev

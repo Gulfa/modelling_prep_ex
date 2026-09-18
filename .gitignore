@@ -1,0 +1,10 @@
+.Rlib/
+.Rproj.user/
+.Rhistory
+.RData
+src/*.o
+src/*.so
+src/*.dll
+*.tar.gz
+Rplots.pdf
+examples/output/
