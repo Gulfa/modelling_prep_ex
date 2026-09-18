@@ -53,8 +53,10 @@
 #'   to everyone), or with extra columns `age` and/or `region` to target
 #'   groups (`NA` = all). Rows are applied in time order: from `time` onwards
 #'   the matching groups get multiplier `mult` until a later row matching them
-#'   overrides it. Contacts between groups i and j are scaled by
-#'   `sqrt(mult_i * mult_j)`.
+#'   overrides it. `mult` is the fraction of the group's contacts that still
+#'   happen: contacts between groups i and j are scaled by
+#'   `min(mult_i, mult_j)`, so a group with multiplier m has all its contacts
+#'   (with any group) reduced by at least that much.
 #'
 #' @return An object of class `seirvax_model`.
 #' @export

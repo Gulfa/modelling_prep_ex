@@ -40,9 +40,10 @@ I_ini <- parameter()
 R_ini <- parameter()
 dim(S_ini, E_ini, I_ini, R_ini) <- c(n_group, 2)
 
-# Piecewise-constant contact multiplier per group. Contacts between groups i
-# and j are scaled by sqrt(beta_mult[i] * beta_mult[j]), so a multiplier m
-# applied to everyone scales all transmission by m.
+# Piecewise-constant contact multiplier per group: the fraction of the group's
+# contacts that still happen. Contacts between groups i and j are scaled by
+# min(beta_mult[i], beta_mult[j]) -- the more restricted group decides -- so a
+# multiplier m applied to everyone scales all transmission by m.
 beta_time       <- parameter()
 beta_mult_value <- parameter()
 dim(beta_time)       <- n_beta_time
@@ -54,17 +55,14 @@ dim(beta_mult) <- n_group
 N[] <- sum(S[i, ]) + sum(E[i, ]) + sum(I[i, ]) + sum(H[i, ]) + sum(R[i, ])
 dim(N) <- n_group
 
-sqrt_mult[] <- sqrt(beta_mult[i])
-dim(sqrt_mult) <- n_group
-
 # Infectious pressure exerted by group j (per member of group j)
-prev[] <- sqrt_mult[i] * (trans[i, 1] * I[i, 1] + trans[i, 2] * I[i, 2]) / N[i]
+prev[] <- (trans[i, 1] * I[i, 1] + trans[i, 2] * I[i, 2]) / N[i]
 dim(prev) <- n_group
 
-contact_prev[, ] <- contact[i, j] * prev[j]
+contact_prev[, ] <- contact[i, j] * min(beta_mult[i], beta_mult[j]) * prev[j]
 dim(contact_prev) <- c(n_group, n_group)
 
-lambda[] <- beta * sqrt_mult[i] * sum(contact_prev[i, ])
+lambda[] <- beta * sum(contact_prev[i, ])
 dim(lambda) <- n_group
 
 ## ---- Flows ----------------------------------------------------------------

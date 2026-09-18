@@ -44,7 +44,6 @@ public:
       dust2::array::dimensions<2> beta_mult_value;
       dust2::array::dimensions<1> beta_mult;
       dust2::array::dimensions<1> N;
-      dust2::array::dimensions<1> sqrt_mult;
       dust2::array::dimensions<1> prev;
       dust2::array::dimensions<2> contact_prev;
       dust2::array::dimensions<1> lambda;
@@ -76,15 +75,14 @@ public:
     std::vector<real_type> N;
     std::vector<real_type> n_EI;
     std::vector<real_type> n_I_out;
+    std::vector<real_type> prev;
     std::vector<real_type> p_H_out;
     std::vector<real_type> n_IH;
     std::vector<real_type> n_ID;
     std::vector<real_type> n_H_out;
     std::vector<real_type> beta_mult;
-    std::vector<real_type> sqrt_mult;
-    std::vector<real_type> n_HD;
-    std::vector<real_type> prev;
     std::vector<real_type> contact_prev;
+    std::vector<real_type> n_HD;
     std::vector<real_type> lambda;
     std::vector<real_type> p_SE;
     std::vector<real_type> n_SE;
@@ -107,7 +105,6 @@ public:
     dim.beta_mult_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_beta_time)});
     dim.beta_mult.set({static_cast<size_t>(n_group)});
     dim.N.set({static_cast<size_t>(n_group)});
-    dim.sqrt_mult.set({static_cast<size_t>(n_group)});
     dim.prev.set({static_cast<size_t>(n_group)});
     dim.contact_prev.set({static_cast<size_t>(n_group), static_cast<size_t>(n_group)});
     dim.lambda.set({static_cast<size_t>(n_group)});
@@ -164,19 +161,18 @@ public:
     std::vector<real_type> N(shared.dim.N.size);
     std::vector<real_type> n_EI(shared.dim.n_SE.size);
     std::vector<real_type> n_I_out(shared.dim.n_SE.size);
+    std::vector<real_type> prev(shared.dim.prev.size);
     std::vector<real_type> p_H_out(shared.dim.p_SE.size);
     std::vector<real_type> n_IH(shared.dim.n_SE.size);
     std::vector<real_type> n_ID(shared.dim.n_SE.size);
     std::vector<real_type> n_H_out(shared.dim.n_SE.size);
     std::vector<real_type> beta_mult(shared.dim.beta_mult.size);
-    std::vector<real_type> sqrt_mult(shared.dim.sqrt_mult.size);
-    std::vector<real_type> n_HD(shared.dim.n_SE.size);
-    std::vector<real_type> prev(shared.dim.prev.size);
     std::vector<real_type> contact_prev(shared.dim.contact_prev.size);
+    std::vector<real_type> n_HD(shared.dim.n_SE.size);
     std::vector<real_type> lambda(shared.dim.lambda.size);
     std::vector<real_type> p_SE(shared.dim.p_SE.size);
     std::vector<real_type> n_SE(shared.dim.n_SE.size);
-    return internal_state{N, n_EI, n_I_out, p_H_out, n_IH, n_ID, n_H_out, beta_mult, sqrt_mult, n_HD, prev, contact_prev, lambda, p_SE, n_SE};
+    return internal_state{N, n_EI, n_I_out, prev, p_H_out, n_IH, n_ID, n_H_out, beta_mult, contact_prev, n_HD, lambda, p_SE, n_SE};
   }
   static void update_shared(cpp11::list parameters, shared_state& shared) {
     shared.beta = dust2::r::read_real(parameters, "beta", shared.beta);
@@ -295,6 +291,9 @@ public:
         internal.n_I_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, I[i - 1 + (j - 1) * shared.dim.S.mult[1]], p_I_out);
       }
     }
+    for (size_t i = 1; i <= shared.dim.prev.size; ++i) {
+      internal.prev[i - 1] = (shared.trans[i - 1] * I[i - 1] + shared.trans[i - 1 + shared.dim.sus.mult[1]] * I[i - 1 + shared.dim.S.mult[1]]) / internal.N[i - 1];
+    }
     for (size_t i = 1; i <= shared.dim.p_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.p_SE.dim[1]; ++j) {
         internal.p_H_out[i - 1 + (j - 1) * shared.dim.p_SE.mult[1]] = 1 - monty::math::exp<real_type>(-dt / shared.dur_hosp[i - 1 + (j - 1) * shared.dim.sus.mult[1]]);
@@ -316,24 +315,18 @@ public:
       }
     }
     shared.interpolate_beta_mult.eval(time, internal.beta_mult);
-    for (size_t i = 1; i <= shared.dim.sqrt_mult.size; ++i) {
-      internal.sqrt_mult[i - 1] = monty::math::sqrt<real_type>(internal.beta_mult[i - 1]);
+    for (size_t i = 1; i <= shared.dim.contact_prev.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.contact_prev.dim[1]; ++j) {
+        internal.contact_prev[i - 1 + (j - 1) * shared.dim.contact_prev.mult[1]] = shared.contact[i - 1 + (j - 1) * shared.dim.contact.mult[1]] * monty::math::min<real_type>(internal.beta_mult[i - 1], internal.beta_mult[j - 1]) * internal.prev[j - 1];
+      }
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {
         internal.n_HD[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, internal.n_H_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]], shared.p_death_hosp[i - 1 + (j - 1) * shared.dim.sus.mult[1]]);
       }
     }
-    for (size_t i = 1; i <= shared.dim.prev.size; ++i) {
-      internal.prev[i - 1] = internal.sqrt_mult[i - 1] * (shared.trans[i - 1] * I[i - 1] + shared.trans[i - 1 + shared.dim.sus.mult[1]] * I[i - 1 + shared.dim.S.mult[1]]) / internal.N[i - 1];
-    }
-    for (size_t i = 1; i <= shared.dim.contact_prev.dim[0]; ++i) {
-      for (size_t j = 1; j <= shared.dim.contact_prev.dim[1]; ++j) {
-        internal.contact_prev[i - 1 + (j - 1) * shared.dim.contact_prev.mult[1]] = shared.contact[i - 1 + (j - 1) * shared.dim.contact.mult[1]] * internal.prev[j - 1];
-      }
-    }
     for (size_t i = 1; i <= shared.dim.lambda.size; ++i) {
-      internal.lambda[i - 1] = shared.beta * internal.sqrt_mult[i - 1] * dust2::array::sum<real_type>(internal.contact_prev.data(), shared.dim.contact_prev, {i - 1, i - 1}, {0, shared.dim.contact_prev.dim[1] - 1});
+      internal.lambda[i - 1] = shared.beta * dust2::array::sum<real_type>(internal.contact_prev.data(), shared.dim.contact_prev, {i - 1, i - 1}, {0, shared.dim.contact_prev.dim[1] - 1});
     }
     for (size_t i = 1; i <= shared.dim.p_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.p_SE.dim[1]; ++j) {

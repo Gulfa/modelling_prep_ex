@@ -3,15 +3,14 @@
 # With the force of infection used in the models, one infected person in
 # group j, stratum w, infects on average
 #
-#   K[(i,v), (j,w)] = beta * sqrt(m_i m_j) * sus[i,v] * C[i,j] * trans[j,w]
+#   K[(i,v), (j,w)] = beta * min(m_i, m_j) * sus[i,v] * C[i,j] * trans[j,w]
 #                     * S[i,v] / N_j * infectious_period
 #
 # people in group i, stratum v. Strata are stacked unvaccinated first.
 ngm <- function(beta, contact, sus, trans, S, N_group, mult, infectious_period) {
-  sqrt_mult <- sqrt(mult)
-  a <- as.vector(sus * S * sqrt_mult)
-  b <- as.vector(trans / N_group * sqrt_mult)
-  C2 <- kronecker(matrix(1, 2, 2), contact)
+  a <- as.vector(sus * S)
+  b <- as.vector(trans / N_group)
+  C2 <- kronecker(matrix(1, 2, 2), contact * outer(mult, mult, pmin))
   beta * infectious_period * (a * C2) * rep(b, each = length(a))
 }
 

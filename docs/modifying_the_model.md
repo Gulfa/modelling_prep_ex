@@ -82,8 +82,8 @@ deriv(R[, ]) <- ... + n_A_out[i, j]          # add to the existing R equation
 
 # A counts in N and contributes to transmission
 N[] <- ... + sum(A[i, ])
-prev[] <- sqrt_mult[i] * (trans[i, 1] * (I[i, 1] + rel_inf_asymp * A[i, 1]) +
-                          trans[i, 2] * (I[i, 2] + rel_inf_asymp * A[i, 2])) / N[i]
+prev[] <- (trans[i, 1] * (I[i, 1] + rel_inf_asymp * A[i, 1]) +
+           trans[i, 2] * (I[i, 2] + rel_inf_asymp * A[i, 2])) / N[i]
 ```
 
 In **`seir_stoch.R`**, make the same changes with binomial draws:

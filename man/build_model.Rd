@@ -77,8 +77,10 @@ interventions. Either a data.frame with columns \code{time} and \code{mult} (app
 to everyone), or with extra columns \code{age} and/or \code{region} to target
 groups (\code{NA} = all). Rows are applied in time order: from \code{time} onwards
 the matching groups get multiplier \code{mult} until a later row matching them
-overrides it. Contacts between groups i and j are scaled by
-\code{sqrt(mult_i * mult_j)}.}
+overrides it. \code{mult} is the fraction of the group's contacts that still
+happen: contacts between groups i and j are scaled by
+\code{min(mult_i, mult_j)}, so a group with multiplier m has all its contacts
+(with any group) reduced by at least that much.}
 }
 \value{
 An object of class \code{seirvax_model}.

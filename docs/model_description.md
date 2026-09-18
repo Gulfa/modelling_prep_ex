@@ -29,15 +29,18 @@ Vaccination is an **initial coverage** only: a fraction `vacc_coverage` of each 
 ## Force of infection
 
 $$
-\lambda_g(t) = \beta \sqrt{m_g(t)} \sum_{h} C_{gh}\, \sqrt{m_h(t)}\; \frac{\text{trans}_{h0} I_{h0} + \text{trans}_{h1} I_{h1}}{N_h}
+\lambda_g(t) = \beta \sum_{h} C_{gh}\, \min\big(m_g(t), m_h(t)\big)\; \frac{\text{trans}_{h0} I_{h0} + \text{trans}_{h1} I_{h1}}{N_h}
 $$
 
 - $N_h$ is the living population of group $h$ ($S+E+I+H+R$, both strata).
 - $C_{gh}$ is the number of contacts per day a person in group $g$ has with people in group $h$.
 - $\text{sus}_{gv}$ and $\text{trans}_{hv}$ are the relative susceptibility and infectiousness.
-- $m_g(t)$ is the contact multiplier from `beta_schedule`. Contacts between $g$ and $h$ are scaled by $\sqrt{m_g m_h}$:
+- $m_g(t)$ is the contact multiplier from `beta_schedule`: the fraction of group $g$'s contacts that still happen. Contacts between $g$ and $h$ are scaled by $\min(m_g, m_h)$, so the more restricted group decides:
   - A multiplier applied to everyone scales all transmission by exactly that factor.
-  - A multiplier applied to one region reduces its internal contacts by $m$ and its contacts with other regions by $\sqrt{m}$.
+  - "65+ at 0.5" halves every contact involving someone aged 65+, including their contacts with other age groups.
+  - "Region A at 0.25" cuts all contacts involving region A residents to 25%, including their contacts with other regions.
+  - Contact rates stay reciprocal, because the factor is the same from both sides.
+  - Where two restricted groups meet, the stricter multiplier applies; the two are not multiplied together.
 
 New infections in group $g$, stratum $v$, occur at rate $\lambda_g\,\text{sus}_{gv}\,S_{gv}$.
 

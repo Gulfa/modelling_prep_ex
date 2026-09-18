@@ -40,3 +40,23 @@ test_that("regional lockdown with isolated regions only affects that region", {
   expect_equal(cum[region == "B"]$value, 0)
   expect_gt(cum[region == "A"]$value, 100)
 })
+
+test_that("a targeted multiplier scales that group's contacts with everyone", {
+  # "old" at 0.5 should equal scaling C_age by min(m_a, m_b) with the same beta
+  m <- small_model(beta_schedule = data.frame(time = 0, mult = 0.5, age = "old"))
+  C_age <- matrix(c(3, 1, 1, 2), 2)
+  C_scaled <- C_age * outer(c(1, 0.5), c(1, 0.5), pmin)   # old-young halved too
+  ref <- small_model(C_age = C_scaled, R0 = NULL, beta = m$beta)
+
+  expect_equal(R_eff(m), R_eff(ref), tolerance = 1e-10)
+  a <- get_output(run_model(m, t_max = 150), c("H", "cum_infections"),
+                  by = c("age", "region"))
+  b <- get_output(run_model(ref, t_max = 150), c("H", "cum_infections"),
+                  by = c("age", "region"))
+  expect_equal(a$value, b$value, tolerance = 1e-6)
+})
+
+test_that("a global multiplier scales R_eff by exactly that factor", {
+  m <- small_model(beta_schedule = data.frame(time = 10, mult = 0.6))
+  expect_equal(R_eff(m, time = 10), 0.6 * R_eff(m, time = 0))
+})
