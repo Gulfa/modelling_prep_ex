@@ -19,7 +19,7 @@ install.packages(c("dust2", "monty", "data.table", "ggplot2", "remotes"),
 remotes::install_local("path/to/modelling_prep_ex")
 ```
 
-To use the FHI R container instead, see [`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).
+For working on the model itself, see [`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).
 
 ## Quick start
 

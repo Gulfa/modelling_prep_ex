@@ -1,5 +1,5 @@
 ^\.Rlib$
-^dev$
+^CLAUDE\.md$
 ^docs$
 ^examples$
 ^\.git$

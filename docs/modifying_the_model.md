@@ -23,21 +23,27 @@ The R layer takes care of the rest:
 
 ## Development setup
 
-Development needs `odin2` (to regenerate code) and `devtools`. Everything can be run in the FHI R container through `dev/r.sh`, which mounts the project at `/work` and uses the project-local library `.Rlib/`:
+Development needs `odin2` (to regenerate the C++ code) and `devtools`, on top of the packages in `DESCRIPTION`:
 
-```sh
-# one-off: install odin2/dust2/monty into .Rlib
-dev/r.sh -e 'install.packages(c("odin2", "dust2", "monty"), lib = "/work/.Rlib",
-  repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))'
-
-dev/r.sh -e 'odin2::odin_package(".")'    # regenerate C++ from inst/odin/*.R
-dev/r.sh -e 'devtools::document()'        # regenerate NAMESPACE and man/
-dev/r.sh -e 'devtools::test()'            # run the tests
-dev/r.sh -e 'devtools::install(".", lib = "/work/.Rlib", upgrade = "never")'
-dev/r.sh examples/01_single_population.R  # run an example
+```r
+install.packages(c("odin2", "dust2", "monty"),
+                 repos = c("https://mrc-ide.r-universe.dev",
+                           "https://cloud.r-project.org"))
+install.packages("devtools")
 ```
 
-Outside the container, run the same R commands in a normal R session.
+The usual development commands, run from the package root:
+
+```r
+odin2::odin_package(".")   # regenerate C++ from inst/odin/*.R
+devtools::document()       # regenerate NAMESPACE and man/
+devtools::load_all()       # load the package for interactive work
+devtools::test()           # run the tests
+devtools::check()          # full R CMD check
+devtools::install()        # install it
+```
+
+Note that `load_all()` compiles without optimisation, so the stochastic model and particle MCMC are several times slower than in an installed build. Install the package before timing anything.
 
 ## Checklist for a change
 
