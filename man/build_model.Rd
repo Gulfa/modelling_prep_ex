@@ -26,7 +26,8 @@ build_model(
   ve_death = 0,
   I0 = 0,
   E0 = 0,
-  beta_schedule = NULL
+  beta_schedule = NULL,
+  mixing_schedule = NULL
 )
 }
 \arguments{
@@ -81,6 +82,12 @@ overrides it. \code{mult} is the fraction of the group's contacts that still
 happen: contacts between groups i and j are scaled by
 \code{min(mult_i, mult_j)}, so a group with multiplier m has all its contacts
 (with any group) reduced by at least that much.}
+
+\item{mixing_schedule}{Optional changes of the mixing matrices over time: a
+list of entries like \code{list(time = 40, C_age = C_holiday)}, each replacing
+\code{C_age}, \code{M_region} or both from that time on (the one not given carries
+over). \code{C_age} and \code{M_region} themselves apply from time 0. \code{R0} is
+calibrated from the mixing at time 0.}
 }
 \value{
 An object of class \code{seirvax_model}.

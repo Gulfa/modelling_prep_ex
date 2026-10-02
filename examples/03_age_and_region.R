@@ -71,6 +71,28 @@ ggplot(h, aes(time, value, colour = scenario)) +
   geom_line() + facet_wrap(~region, scales = "free_y") +
   labs(x = "Day", y = "Hospital occupancy") + theme_bw()
 
+# ---- Changing the mixing pattern itself ---------------------------------------
+# beta_schedule scales contact rates. To change the *pattern* -- a school
+# holiday, or regions that stop mixing -- switch the matrices themselves.
+C_holiday <- ex$C_age
+C_holiday["0-19", "0-19"] <- C_holiday["0-19", "0-19"] * 0.3   # no school
+M_closed <- diag(3)
+dimnames(M_closed) <- dimnames(ex$M_region)                    # no travel
+
+res_mix <- run_model(update_model(m, mixing_schedule = list(
+  list(time = 60, C_age = C_holiday, M_region = M_closed),
+  list(time = 100, C_age = ex$C_age, M_region = ex$M_region))), t_max = 300)
+
+h2 <- rbind(h, get_output(res_mix, "H", by = "region")[, scenario := "holiday + closed borders"])
+print(ggplot(h2, aes(time, value, colour = scenario)) +
+        geom_line() + facet_wrap(~region, scales = "free_y") +
+        labs(x = "Day", y = "Hospital occupancy") + theme_bw())
+
+# R0 is calibrated from the mixing at time 0; R_eff follows the schedule
+R0(m)
+R_eff(update_model(m, mixing_schedule = list(
+  list(time = 60, C_age = C_holiday, M_region = M_closed))), time = 70)
+
 # ---- Stochastic version: early fade-out is possible --------------------------
 sto <- run_model(m, "stochastic", t_max = 300, n_sim = 100, seed = 1, n_threads = 4)
 plot(sto, var = "H", by = "region", n_traces = 20)

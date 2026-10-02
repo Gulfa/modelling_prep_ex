@@ -61,3 +61,60 @@ check_M_region <- function(M_region, n_region, region_labels) {
   dimnames(M_region) <- list(region_labels, region_labels)
   M_region
 }
+
+# Build the piecewise-constant contact matrix over time.
+#
+# `C_age` and `M_region` give the mixing from time 0. Each entry of
+# `schedule` is a list with `time` and `C_age` and/or `M_region`; from that
+# time on, the given matrix replaces the one in use (the other one carries
+# over). Returns list(time = <n_t>, value = <n x n x n_t array>).
+build_mixing_schedule <- function(C_age, M_region, schedule, dims) {
+  combined <- function(C, M) combine_mixing(C, M)
+  if (is.null(schedule)) {
+    return(list(time = 0, value = array(combined(C_age, M_region),
+                                        c(rep(length(dims$age) * length(dims$region), 2), 1))))
+  }
+  if (!is.list(schedule) || !all(vapply(schedule, is.list, TRUE))) {
+    stop("'mixing_schedule' must be a list of lists, each with 'time' and ",
+         "'C_age' and/or 'M_region'")
+  }
+  times <- vapply(schedule, function(e) {
+    if (!is.numeric(e$time) || length(e$time) != 1 || is.na(e$time)) {
+      stop("Each entry of 'mixing_schedule' needs a single 'time'")
+    }
+    e$time
+  }, 1)
+  check_range(times, "mixing_schedule time")
+  for (e in schedule) {
+    unknown <- setdiff(names(e), c("time", "C_age", "M_region"))
+    if (length(unknown) > 0) {
+      stop(sprintf("Unknown element(s) in 'mixing_schedule': %s",
+                   paste(unknown, collapse = ", ")))
+    }
+    if (is.null(e$C_age) && is.null(e$M_region)) {
+      stop("Each entry of 'mixing_schedule' must change 'C_age' or 'M_region'")
+    }
+  }
+
+  schedule <- schedule[order(times)]
+  times <- sort(times)
+  if (times[1] > 0) {
+    times <- c(0, times)
+    schedule <- c(list(list(time = 0)), schedule)
+  }
+  n <- length(dims$age) * length(dims$region)
+  value <- array(NA_real_, c(n, n, length(times)))
+  current_C <- C_age
+  current_M <- M_region
+  for (k in seq_along(times)) {
+    e <- schedule[[k]]
+    if (!is.null(e$C_age)) {
+      current_C <- check_C_age(e$C_age, length(dims$age), dims$age)
+    }
+    if (!is.null(e$M_region)) {
+      current_M <- check_M_region(e$M_region, length(dims$region), dims$region)
+    }
+    value[, , k] <- combined(current_C, current_M)
+  }
+  list(time = times, value = value)
+}

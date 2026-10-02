@@ -57,6 +57,25 @@ $$
 
 This assumes that everyone has the same age-mixing pattern and that the region matrix only redistributes where contacts happen. A 1×1 matrix removes the corresponding dimension.
 
+### Mixing that changes over time
+
+`mixing_schedule` switches the matrices at given times, so the *pattern* of contacts can change, not just its level:
+
+```r
+build_model(..., C_age = C_term, M_region = M_normal,
+  mixing_schedule = list(
+    list(time = 40, C_age = C_holiday),                  # schools close
+    list(time = 40, M_region = M_restricted),            # ... and travel is restricted
+    list(time = 70, C_age = C_term, M_region = M_normal) # both back to normal
+  ))
+```
+
+Each entry replaces `C_age`, `M_region` or both from its time onwards; whichever is not given carries over. `C_age` and `M_region` themselves apply from time 0. Internally this is one `n × n × n_time` array, interpolated piecewise-constant, so the cost is a little memory and nothing at run time.
+
+`beta_schedule` and `mixing_schedule` are independent and compose: the multipliers scale whichever matrix is in force. Use `mixing_schedule` when the *shape* changes (school holidays, closed borders) and `beta_schedule` when the *level* does (distancing, a group reducing its contacts).
+
+**R0 is calibrated from the mixing at time 0.** `R_eff(model, time)` uses the matrix in force at `time`, so it reflects later changes.
+
 ## Vaccine effects
 
 The vaccinated stratum uses the unvaccinated parameters multiplied by one minus the vaccine effectiveness (VE). Each VE can vary by age and region.

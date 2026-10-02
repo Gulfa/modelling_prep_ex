@@ -5,7 +5,7 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 - Stratified by **age group** and **region**. Age and region contact matrices are combined into one contact structure.
 - Has a **vaccinated stratum** that runs in parallel with the unvaccinated one. Vaccine effectiveness against infection, onward transmission, hospitalisation and death can vary by age.
 - Hospitalisation, **hospital deaths** and **community deaths**.
-- **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups.
+- **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups, plus **mixing matrices that can change over time** (school holidays, travel restrictions).
 - A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
 - **Bundled data** for four fictional countries: population by region and five-year age band, plus region polygons, settlements and a population grid for maps.
 - **Synthetic exercise data**: a line list of cases with hospitalisation and death dates, generated from a real run of the model.

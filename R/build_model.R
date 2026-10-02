@@ -48,6 +48,11 @@
 #'   see Details.
 #' @param I0,E0 Initial number of infectious / exposed people (placed in the
 #'   unvaccinated stratum).
+#' @param mixing_schedule Optional changes of the mixing matrices over time: a
+#'   list of entries like `list(time = 40, C_age = C_holiday)`, each replacing
+#'   `C_age`, `M_region` or both from that time on (the one not given carries
+#'   over). `C_age` and `M_region` themselves apply from time 0. `R0` is
+#'   calibrated from the mixing at time 0.
 #' @param beta_schedule Optional contact multipliers over time, e.g. for
 #'   interventions. Either a data.frame with columns `time` and `mult` (applies
 #'   to everyone), or with extra columns `age` and/or `region` to target
@@ -84,7 +89,8 @@ build_model <- function(N,
                         ve_death = 0,
                         I0 = 0,
                         E0 = 0,
-                        beta_schedule = NULL) {
+                        beta_schedule = NULL,
+                        mixing_schedule = NULL) {
   args <- as.list(environment())
 
   pop <- parse_population(N)
@@ -94,7 +100,8 @@ build_model <- function(N,
 
   C_age <- check_C_age(C_age, length(dims$age), dims$age)
   M_region <- check_M_region(M_region, length(dims$region), dims$region)
-  contact <- combine_mixing(C_age, M_region)
+  mixing <- build_mixing_schedule(C_age, M_region, mixing_schedule, dims)
+  contact <- mixing$value[, , 1]
 
   if (is.null(R0) == is.null(beta)) {
     stop("Give exactly one of 'R0' and 'beta'")
@@ -145,7 +152,9 @@ build_model <- function(N,
     beta = NA_real_,
     sigma = 1 / latent_period,
     gamma = 1 / infectious_period,
-    contact = contact,
+    n_contact_time = length(mixing$time),
+    contact_time = mixing$time,
+    contact_value = mixing$value,
     sus = vs(susceptibility, susceptibility * (1 - ve_infection)),
     trans = vs(transmissibility, transmissibility * (1 - ve_transmission)),
     p_hosp = vs(p_hosp, p_hosp * (1 - ve_hosp)),
@@ -183,6 +192,7 @@ build_model <- function(N,
          N_group = N_group,
          C_age = C_age,
          M_region = M_region,
+         mixing_time = mixing$time,
          epi = list(susceptibility = susceptibility,
                     transmissibility = transmissibility,
                     p_hosp = p_hosp, p_death_hosp = p_death_hosp,

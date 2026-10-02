@@ -16,8 +16,15 @@ beta  <- parameter()   # transmission rate (calibrated from R0 in R)
 sigma <- parameter()   # 1 / latent period
 gamma <- parameter()   # 1 / infectious period
 
-# contact[i, j]: contacts per day a person in group i has with group j
-contact <- parameter()
+# contact[i, j]: contacts per day a person in group i has with group j.
+# Piecewise constant in time, so the mixing pattern can change (school
+# holidays, travel restrictions); the last dimension of contact_value is time.
+n_contact_time <- parameter(type = "integer", constant = TRUE)
+contact_time   <- parameter()
+contact_value  <- parameter()
+dim(contact_time)  <- n_contact_time
+dim(contact_value) <- c(n_group, n_group, n_contact_time)
+contact <- interpolate(contact_time, contact_value, "constant")
 dim(contact) <- c(n_group, n_group)
 
 # [group, vaccination status] parameters

@@ -46,8 +46,14 @@ r0_per_beta <- function(contact, sus, trans, N_group, infectious_period) {
 #' @export
 R0 <- function(model) {
   p <- model$pars
-  model$beta * r0_per_beta(p$contact, p$sus, p$trans, model$N_group,
-                           1 / p$gamma)
+  model$beta * r0_per_beta(contact_at(model, 0), p$sus, p$trans,
+                           model$N_group, 1 / p$gamma)
+}
+
+# The contact matrix in force at `time`
+contact_at <- function(model, time) {
+  p <- model$pars
+  p$contact_value[, , max(1, findInterval(time, p$contact_time))]
 }
 
 #' @rdname R0
@@ -56,6 +62,6 @@ R_eff <- function(model, time = 0) {
   p <- model$pars
   k <- findInterval(time, p$beta_time)
   S <- p$S_ini + p$E_ini + p$I_ini
-  spectral_radius(ngm(p$beta, p$contact, p$sus, p$trans, S, model$N_group,
-                      p$beta_mult_value[, k], 1 / p$gamma))
+  spectral_radius(ngm(p$beta, contact_at(model, time), p$sus, p$trans, S,
+                      model$N_group, p$beta_mult_value[, k], 1 / p$gamma))
 }

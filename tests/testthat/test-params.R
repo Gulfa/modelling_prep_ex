@@ -59,3 +59,70 @@ test_that("update_model changes arguments and swaps R0/beta", {
   expect_equal(R0(m4), 3)
   expect_error(update_model(m, not_an_arg = 1), "Unknown")
 })
+
+test_that("mixing_schedule switches the contact matrix over time", {
+  C2 <- matrix(c(6, 2, 2, 4), 2)        # a different age matrix
+  iso <- diag(2)
+  m <- small_model(mixing_schedule = list(list(time = 30, C_age = C2),
+                                          list(time = 60, M_region = iso)))
+  p <- m$pars
+  expect_equal(p$contact_time, c(0, 30, 60))
+  expect_equal(dim(p$contact_value), c(4, 4, 3))
+  # each slice is the combination in force then; the matrix not given carries over
+  M0 <- matrix(c(0.9, 0.1, 0.1, 0.9), 2)
+  C0 <- matrix(c(3, 1, 1, 2), 2)
+  expect_equal(p$contact_value[, , 1], combine_mixing(C0, M0), ignore_attr = TRUE)
+  expect_equal(p$contact_value[, , 2], combine_mixing(C2, M0), ignore_attr = TRUE)
+  expect_equal(p$contact_value[, , 3], combine_mixing(C2, iso), ignore_attr = TRUE)
+
+  # without a schedule there is a single slice
+  expect_equal(small_model()$pars$n_contact_time, 1)
+})
+
+test_that("a schedule entry at time 0 replaces the starting mixing", {
+  C2 <- matrix(c(6, 2, 2, 4), 2)
+  a <- small_model(mixing_schedule = list(list(time = 0, C_age = C2)))
+  b <- small_model(C_age = C2)
+  expect_equal(a$pars$contact_value[, , 1], b$pars$contact_value[, , 1])
+  expect_equal(R0(a), R0(b))
+  expect_equal(a$beta, b$beta)
+})
+
+test_that("R0 uses the mixing at time 0 and R_eff follows the schedule", {
+  half <- matrix(c(3, 1, 1, 2), 2) / 2
+  m <- small_model(R0 = 2, mixing_schedule = list(list(time = 50, C_age = half)))
+  expect_equal(R0(m), 2)
+  expect_equal(R_eff(m, 0), 2, tolerance = 1e-3)
+  expect_equal(R_eff(m, 60), 1, tolerance = 1e-3)   # contacts halved
+})
+
+test_that("changed mixing changes the epidemic", {
+  iso <- diag(2)
+  I0 <- matrix(c(10, 0, 0, 0), 2)        # seeded in region A only
+  mixed <- small_model(I0 = I0)
+  early <- small_model(I0 = I0, mixing_schedule = list(list(time = 0, M_region = iso)))
+  late <- small_model(I0 = I0, mixing_schedule = list(list(time = 15, M_region = iso)))
+  B <- function(m) {
+    d <- get_output(run_model(m, t_max = 120), "cum_infections", by = "region")
+    d[region == "B" & time == 120]$value
+  }
+  expect_equal(B(early), 0)              # never mixed, so B stays clean
+  expect_gt(B(mixed), 0)
+  expect_lt(B(late), B(mixed))           # isolating early helps B
+})
+
+test_that("mixing_schedule is validated", {
+  C2 <- matrix(c(6, 2, 2, 4), 2)
+  expect_error(small_model(mixing_schedule = list(list(C_age = C2))), "single 'time'")
+  expect_error(small_model(mixing_schedule = list(list(time = 10))), "must change")
+  expect_error(small_model(mixing_schedule = list(list(time = -1, C_age = C2))),
+               "mixing_schedule time")
+  expect_error(small_model(mixing_schedule = list(list(time = 10, Cage = C2))),
+               "Unknown element")
+  expect_error(small_model(mixing_schedule = list(time = 10, C_age = C2)),
+               "list of lists")
+  expect_error(small_model(mixing_schedule = list(list(time = 10, M_region = matrix(0.4, 2, 2)))),
+               "sum to 1")
+  expect_error(small_model(mixing_schedule = list(list(time = 10, C_age = matrix(1, 3, 3)))),
+               "2 x 2 matrix")
+})
