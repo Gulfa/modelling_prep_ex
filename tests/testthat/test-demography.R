@@ -90,6 +90,8 @@ test_that("region_distances is a symmetric km matrix in the given order", {
 test_that("plot_region_map accepts vectors and data.frames", {
   skip_if_not_installed("sf")
   expect_s3_class(plot_region_map(country = "Sweway"), "ggplot")
+  expect_s3_class(plot_region_map(region_labels = FALSE, country_labels = FALSE),
+                  "ggplot")
   v <- c(S1 = 1, S2 = 2, S3 = 3, S4 = 4, S5 = 5)
   expect_s3_class(plot_region_map(v), "ggplot")
   expect_s3_class(plot_region_map(data.frame(region = names(v), attack_rate = v)),

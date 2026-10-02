@@ -9,7 +9,8 @@ plot_region_map(
   country = NULL,
   regions = NULL,
   label = NULL,
-  labels = TRUE,
+  region_labels = TRUE,
+  country_labels = TRUE,
   file = NULL
 )
 }
@@ -26,7 +27,9 @@ order given here is the order used by \code{\link[=population_matrix]{population
 
 \item{label}{Legend title.}
 
-\item{labels}{Draw the region code on each region.}
+\item{region_labels}{Draw the region code on each region.}
+
+\item{country_labels}{Draw country outlines and names.}
 
 \item{file}{Path to the GeoPackage; defaults to the bundled copy.}
 }

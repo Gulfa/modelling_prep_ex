@@ -55,7 +55,7 @@ The settlement profiles mean age composition differs between regions, so which r
 | `settlements` | 540 | points: `name`, `role` (capital, regional centre, town, village), `pop` |
 | `cells` | 11,978 | population grid: `pop`, `area_km2`, `density_per_km2`, `settlement` |
 
-`plot_region_map(values)` fills the region polygons by a named vector or a `data.frame(region, value)`, e.g. model output by region. `values = NULL` maps population.
+`plot_region_map(values)` fills the region polygons by a named vector or a `data.frame(region, value)`, e.g. model output by region. `values = NULL` maps population. Country borders are drawn in black with the country name in the middle, and each region carries its code; turn either off with `country_labels = FALSE` or `region_labels = FALSE`. Regions you give no value for are drawn grey, so a map of one country still shows the others as context.
 
 ## Building a region mixing matrix
 

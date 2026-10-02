@@ -241,7 +241,8 @@ region_distances <- function(country = NULL, regions = NULL, file = NULL) {
 #'   by population.
 #' @inheritParams region_info
 #' @param label Legend title.
-#' @param labels Draw the region code on each region.
+#' @param region_labels Draw the region code on each region.
+#' @param country_labels Draw country outlines and names.
 #' @param file Path to the GeoPackage; defaults to the bundled copy.
 #'
 #' @return A ggplot object.
@@ -253,7 +254,8 @@ region_distances <- function(country = NULL, regions = NULL, file = NULL) {
 #' plot_region_map(d[, .(region, value)], label = "Infections")
 #' }
 plot_region_map <- function(values = NULL, country = NULL, regions = NULL,
-                            label = NULL, labels = TRUE, file = NULL) {
+                            label = NULL, region_labels = TRUE,
+                            country_labels = TRUE, file = NULL) {
   d <- read_geography("regions", country, regions, file)
   if (is.null(values)) {
     d$.value <- d$POP_TOTAL
@@ -275,12 +277,105 @@ plot_region_map <- function(values = NULL, country = NULL, regions = NULL,
     d$.value <- unname(values[d$region])
   }
   p <- ggplot2::ggplot(d) +
-    ggplot2::geom_sf(ggplot2::aes(fill = .data$.value), colour = "white") +
-    ggplot2::scale_fill_viridis_c(name = label %||% "Value") +
-    ggplot2::theme_void()
-  if (labels) {
-    p <- p + ggplot2::geom_sf_label(ggplot2::aes(label = .data$region),
-                                    size = 3, label.size = 0, alpha = 0.7)
+    ggplot2::geom_sf(ggplot2::aes(fill = .data$.value), colour = "grey97",
+                     linewidth = 0.3) +
+    ggplot2::scale_fill_viridis_c(
+      name = label %||% "Value",
+      labels = scales::label_number(big.mark = " ")) +
+    ggplot2::theme_void() +
+    ggplot2::theme(legend.position = "right")
+
+  cty_pts <- NULL
+  if (country_labels) {
+    borders <- country_borders(d)
+    cty_pts <- label_points(borders, borders$country)
+    p <- p + ggplot2::geom_sf(data = borders, fill = NA, colour = "black",
+                              linewidth = 1.3)
+  }
+  if (region_labels) {
+    pts <- label_points(d, d$region)
+    pts <- nudge_from(pts, cty_pts)   # keep clear of the country names
+    # dark text on light fills, light text on dark fills
+    pts$colour <- contrast_colour(d$.value)
+    p <- p + ggplot2::geom_sf_text(ggplot2::aes(label = .data$label), data = pts,
+                                   colour = pts$colour, size = 2.8)
+  }
+  if (country_labels) {
+    p <- p + ggplot2::geom_sf_label(ggplot2::aes(label = .data$label),
+                                    data = cty_pts, size = 4,
+                                    fontface = "bold", fill = "white",
+                                    colour = "black", alpha = 0.85,
+                                    label.size = 0,
+                                    label.padding = ggplot2::unit(0.2, "lines"))
   }
   p
+}
+
+# Move label points that sit on top of a country name out of its way
+nudge_from <- function(pts, avoid, radius = 0.12, shift = 0.08) {
+  if (is.null(avoid) || nrow(avoid) == 0) {
+    return(pts)
+  }
+  bb <- sf::st_bbox(pts)
+  size <- max(bb[["xmax"]] - bb[["xmin"]], bb[["ymax"]] - bb[["ymin"]])
+  too_close <- apply(sf::st_distance(pts, avoid), 1, min) < radius * size
+  if (any(too_close)) {
+    xy <- sf::st_coordinates(pts)
+    xy[too_close, 2] <- xy[too_close, 2] - shift * size
+    sf::st_geometry(pts) <- sf::st_sfc(
+      lapply(seq_len(nrow(xy)), function(i) sf::st_point(xy[i, ])),
+      crs = sf::st_crs(pts))
+  }
+  pts
+}
+
+# Points inside each polygon, for labelling
+label_points <- function(x, labels) {
+  pts <- suppressWarnings(sf::st_point_on_surface(sf::st_geometry(x)))
+  sf::st_sf(label = labels, geometry = pts)
+}
+
+# Country outlines: the regions of each country dissolved into one polygon
+country_borders <- function(d) {
+  geom <- sf::st_geometry(d)
+  parts <- lapply(split(seq_len(nrow(d)), d$country),
+                  function(i) drop_sliver_holes(sf::st_union(geom[i])))
+  sf::st_sf(country = names(parts),
+            geometry = sf::st_sfc(do.call(c, unname(parts)),
+                                  crs = sf::st_crs(d)))
+}
+
+# Neighbouring region polygons do not always meet exactly, so dissolving a
+# country leaves hairline holes along the internal edges. Drawn, these look
+# like borders inside the country. Drop interior rings smaller than
+# `min_hole_km2`; a real enclave would be far bigger.
+drop_sliver_holes <- function(geom, min_hole_km2 = 10) {
+  polys <- suppressWarnings(sf::st_cast(geom, "POLYGON"))
+  cleaned <- lapply(polys, function(p) {
+    if (length(p) < 2) {
+      return(sf::st_polygon(p))
+    }
+    keep <- vapply(p[-1], function(r) ring_area(r) > min_hole_km2 * 1e6, TRUE)
+    sf::st_polygon(c(p[1], p[-1][keep]))
+  })
+  sf::st_union(sf::st_sfc(cleaned, crs = sf::st_crs(geom)))
+}
+
+# Shoelace formula, in the units of the coordinates (here m^2)
+ring_area <- function(r) {
+  x <- r[, 1]
+  y <- r[, 2]
+  n <- length(x)
+  abs(sum((x[-1] + x[-n]) * (y[-1] - y[-n]))) / 2
+}
+
+
+# Black or white, whichever reads better on the viridis colour for each value
+contrast_colour <- function(values) {
+  rng <- range(values, finite = TRUE)
+  scaled <- if (diff(rng) > 0) (values - rng[1]) / diff(rng) else rep(0.5, length(values))
+  cols <- scales::viridis_pal()(256)[1 + round(scaled * 255)]
+  rgb <- grDevices::col2rgb(cols) / 255
+  luminance <- colSums(rgb * c(0.2126, 0.7152, 0.0722))
+  ifelse(luminance > 0.5, "grey10", "white")
 }
