@@ -8,3 +8,7 @@ src/*.dll
 *.tar.gz
 Rplots.pdf
 examples/output/
+
+# rendered notebooks / quarto output
+*.html
+*_files/
