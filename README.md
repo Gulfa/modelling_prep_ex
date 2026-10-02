@@ -71,7 +71,7 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `run_model()` | Run the `"deterministic"` or `"stochastic"` version |
 | `get_output()` | Results as a long `data.table`, summed to the strata you choose (`by`) |
 | `summary()` | Totals and peaks (with intervals for stochastic runs) |
-| `plot()` | Plot one variable over time |
+| `plot()` | Plot one variable over time; stochastic runs as a spaghetti plot, or `style = "ribbon"` |
 | `R0()`, `R_eff()` | Reproduction numbers from the next-generation matrix |
 | `fit_model()` | Fit `R0` (and optionally `hosp_scale`, `nb_size`) to daily hospital admissions |
 | `fit_parameters()` | Parameters that can be fitted, with default priors |

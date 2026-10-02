@@ -49,24 +49,41 @@ summary.seirvax_run <- function(object, by = character(0), level = 0.95, ...) {
 #' Plot a model run
 #'
 #' Plots one output variable over time. Deterministic runs are drawn as
-#' lines; stochastic runs as the median with a central interval, optionally
-#' with individual simulations.
+#' lines. Stochastic runs are drawn as a spaghetti plot by default: one line
+#' per simulation, which shows how variable the epidemics are, including ones
+#' that fade out or peak at a very different time. `style = "ribbon"` shows
+#' the median and a central interval instead, which is tidier but hides that
+#' individual epidemics never look like the median.
 #'
 #' @param x Result of [run_model()].
 #' @param var Output variable, see [get_output()].
 #' @param by Stratifications, as in [get_output()]. The first is shown by
 #'   colour, any others as facets.
-#' @param level Width of the interval for stochastic runs.
-#' @param n_traces Number of individual stochastic simulations to draw.
+#' @param style `"spaghetti"` (one line per simulation) or `"ribbon"`
+#'   (median and interval). Ignored for deterministic runs.
+#' @param n_traces Maximum number of simulations to draw as individual lines.
+#'   The default is 50 for `style = "spaghetti"` and none for `"ribbon"`,
+#'   where you can still ask for some.
+#' @param show_median Draw the median on top of the spaghetti.
+#' @param level Width of the interval for `style = "ribbon"`.
 #' @param ... Unused.
 #'
 #' @return A ggplot object.
 #' @export
-plot.seirvax_run <- function(x, var = "H", by = character(0), level = 0.95,
-                             n_traces = 0, ...) {
+#' @examples
+#' m <- build_model(N = 1e4, R0 = 1.6, I0 = 5, p_hosp = 0.05)
+#' res <- run_model(m, "stochastic", t_max = 150, n_sim = 100, seed = 1)
+#' plot(res, var = "I")
+#' plot(res, var = "I", style = "ribbon")
+plot.seirvax_run <- function(x, var = "H", by = character(0),
+                             style = c("spaghetti", "ribbon"),
+                             n_traces = NULL, show_median = TRUE,
+                             level = 0.95, ...) {
   if (length(var) != 1) {
     stop("'var' must be a single variable")
   }
+  style <- match.arg(style)
+  n_traces <- n_traces %||% if (style == "spaghetti") 50 else 0
   by <- check_by(by)
   d <- get_output(x, var, by)
   map_colour <- if (length(by) > 0) {
@@ -79,23 +96,36 @@ plot.seirvax_run <- function(x, var = "H", by = character(0), level = 0.95,
     p <- ggplot2::ggplot(d, ggplot2::aes(time, value)) + map_colour +
       ggplot2::geom_line()
   } else {
-    a <- (1 - level) / 2
-    q <- d[, .(median = stats::median(value),
-               lower = stats::quantile(value, a, names = FALSE),
-               upper = stats::quantile(value, 1 - a, names = FALSE)),
-           by = c("time", by)]
-    p <- ggplot2::ggplot(q, ggplot2::aes(time)) + map_colour
-    if (n_traces > 0) {
-      sims <- seq_len(min(n_traces, x$n_sim))
-      tr <- d[sim %in% sims]
+    traces <- function(p, alpha) {
+      tr <- d[sim %in% seq_len(min(n_traces, x$n_sim))]
       tr[, .trace := do.call(paste, c(list(sim), .SD)), .SDcols = by]
-      p <- p + ggplot2::geom_line(ggplot2::aes(y = value, group = .trace),
-                                  data = tr, alpha = 0.2, linewidth = 0.3)
+      p + ggplot2::geom_line(ggplot2::aes(y = value, group = .trace),
+                             data = tr, alpha = alpha, linewidth = 0.3)
     }
-    p <- p +
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper),
-                           alpha = 0.25, colour = NA) +
-      ggplot2::geom_line(ggplot2::aes(y = median))
+    q <- NULL
+    if (style == "ribbon" || show_median) {
+      a <- (1 - level) / 2
+      q <- d[, .(median = stats::median(value),
+                 lower = stats::quantile(value, a, names = FALSE),
+                 upper = stats::quantile(value, 1 - a, names = FALSE)),
+             by = c("time", by)]
+    }
+    p <- ggplot2::ggplot(q %||% d, ggplot2::aes(time)) + map_colour
+    if (style == "spaghetti") {
+      # fainter lines the more there are, so the bulk stays readable
+      p <- traces(p, max(0.08, min(0.6, 15 / min(n_traces, x$n_sim))))
+      if (show_median) {
+        p <- p + ggplot2::geom_line(ggplot2::aes(y = median), linewidth = 0.8)
+      }
+    } else {
+      if (n_traces > 0) {
+        p <- traces(p, 0.2)
+      }
+      p <- p +
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper),
+                             alpha = 0.25, colour = NA) +
+        ggplot2::geom_line(ggplot2::aes(y = median))
+    }
   }
   if (length(by) > 1) {
     p <- p + ggplot2::facet_wrap(by[-1], scales = "free_y")

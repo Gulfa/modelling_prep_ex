@@ -4,7 +4,16 @@
 \alias{plot.seirvax_run}
 \title{Plot a model run}
 \usage{
-\method{plot}{seirvax_run}(x, var = "H", by = character(0), level = 0.95, n_traces = 0, ...)
+\method{plot}{seirvax_run}(
+  x,
+  var = "H",
+  by = character(0),
+  style = c("spaghetti", "ribbon"),
+  n_traces = NULL,
+  show_median = TRUE,
+  level = 0.95,
+  ...
+)
 }
 \arguments{
 \item{x}{Result of \code{\link[=run_model]{run_model()}}.}
@@ -14,9 +23,16 @@
 \item{by}{Stratifications, as in \code{\link[=get_output]{get_output()}}. The first is shown by
 colour, any others as facets.}
 
-\item{level}{Width of the interval for stochastic runs.}
+\item{style}{\code{"spaghetti"} (one line per simulation) or \code{"ribbon"}
+(median and interval). Ignored for deterministic runs.}
 
-\item{n_traces}{Number of individual stochastic simulations to draw.}
+\item{n_traces}{Maximum number of simulations to draw as individual lines.
+The default is 50 for \code{style = "spaghetti"} and none for \code{"ribbon"},
+where you can still ask for some.}
+
+\item{show_median}{Draw the median on top of the spaghetti.}
+
+\item{level}{Width of the interval for \code{style = "ribbon"}.}
 
 \item{...}{Unused.}
 }
@@ -25,6 +41,15 @@ A ggplot object.
 }
 \description{
 Plots one output variable over time. Deterministic runs are drawn as
-lines; stochastic runs as the median with a central interval, optionally
-with individual simulations.
+lines. Stochastic runs are drawn as a spaghetti plot by default: one line
+per simulation, which shows how variable the epidemics are, including ones
+that fade out or peak at a very different time. \code{style = "ribbon"} shows
+the median and a central interval instead, which is tidier but hides that
+individual epidemics never look like the median.
+}
+\examples{
+m <- build_model(N = 1e4, R0 = 1.6, I0 = 5, p_hosp = 0.05)
+res <- run_model(m, "stochastic", t_max = 150, n_sim = 100, seed = 1)
+plot(res, var = "I")
+plot(res, var = "I", style = "ribbon")
 }

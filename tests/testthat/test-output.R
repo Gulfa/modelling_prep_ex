@@ -21,6 +21,32 @@ test_that("summary and plot work for both model types", {
   expect_s3_class(plot(sto, "inc_hosp", by = "age", n_traces = 2), "ggplot")
 })
 
+test_that("stochastic runs are spaghetti by default, ribbon on request", {
+  m <- small_model()
+  sto <- run_model(m, "stochastic", t_max = 60, n_sim = 5, seed = 1)
+  layers <- function(p) vapply(p$layers, function(l) class(l$geom)[1], "")
+
+  spaghetti <- plot(sto, "I")
+  expect_true("GeomLine" %in% layers(spaghetti))
+  expect_false("GeomRibbon" %in% layers(spaghetti))
+  # one line per simulation, plus the median
+  expect_equal(length(unique(spaghetti$layers[[1]]$data$.trace)), 5)
+  expect_equal(sum(layers(spaghetti) == "GeomLine"), 2)
+  expect_equal(sum(layers(plot(sto, "I", show_median = FALSE)) == "GeomLine"), 1)
+  expect_equal(length(unique(plot(sto, "I", n_traces = 2)$layers[[1]]$data$.trace)), 2)
+
+  ribbon <- plot(sto, "I", style = "ribbon")
+  expect_true("GeomRibbon" %in% layers(ribbon))
+  expect_equal(sum(layers(ribbon) == "GeomLine"), 1)      # no traces by default
+  expect_equal(sum(layers(plot(sto, "I", style = "ribbon",
+                               n_traces = 3)) == "GeomLine"), 2)
+
+  # deterministic runs ignore the style
+  det <- run_model(m, t_max = 60)
+  expect_equal(layers(plot(det, "I")), "GeomLine")
+  expect_error(plot(sto, "I", style = "wiggly"), "should be one of")
+})
+
 test_that("run_model can keep a subset of variables", {
   res <- run_model(small_model(), t_max = 20, vars = c("H", "inc_deaths"))
   expect_equal(names(res$states), c("H", "inc_deaths"))
