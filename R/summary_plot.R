@@ -69,7 +69,6 @@ plot.seirvax_run <- function(x, var = "H", by = character(0), level = 0.95,
   }
   by <- check_by(by)
   d <- get_output(x, var, by)
-  .data <- ggplot2::.data
   map_colour <- if (length(by) > 0) {
     ggplot2::aes(colour = .data[[by[[1]]]], fill = .data[[by[[1]]]])
   } else {

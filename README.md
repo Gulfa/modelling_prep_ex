@@ -7,6 +7,7 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 - Hospitalisation, **hospital deaths** and **community deaths**.
 - **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups.
 - A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
+- **Bundled data** for four fictional countries: population by region and five-year age band, plus region polygons, settlements and a population grid for maps.
 - **Fitting to daily hospital admissions** (national, or by region or age): a quick point estimate, MCMC, or particle MCMC, using [monty](https://mrc-ide.github.io/monty/).
 
 ## Installation
@@ -75,6 +76,9 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `fit_parameters()` | Parameters that can be fitted, with default priors |
 | `project_fit()` | Run the model over posterior draws, e.g. to project beyond the data |
 | `example_data()` | Made-up example population, contact matrices and parameters |
+| `read_demography()`, `region_info()` | The bundled country data, and one row per region |
+| `population_matrix()` | Age × region population matrix for `build_model(N = ...)` |
+| `read_geography()`, `region_distances()`, `plot_region_map()` | Map layers, distances between region centres, and maps of model output |
 
 Parameters can be given as a single value, a vector by age group, a vector by region, or an age × region matrix. See `?build_model`.
 
@@ -87,9 +91,11 @@ The scripts in [`examples/`](examples/) are the best place to start:
 3. [`03_age_and_region.R`](examples/03_age_and_region.R): combined age and region mixing, regional seeding, global and targeted interventions.
 4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios.
 5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
+6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 
 ## Documentation
 
+- [`docs/data.md`](docs/data.md): the bundled country data and how to turn it into model inputs.
 - [`docs/model_description.md`](docs/model_description.md): model structure, equations, assumptions and known limitations.
 - [`docs/modifying_the_model.md`](docs/modifying_the_model.md): how the code is organised, and how to change the model, with a worked example.
 - Function help: `?build_model`, `?run_model`, `?get_output`, and so on.
