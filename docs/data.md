@@ -71,3 +71,46 @@ diag(M) <- within
 ```
 
 The two numbers to think about are `within` (how connected the regions are) and the distance scale. `diag(5)` gives completely isolated regions, which is a useful comparison. See `examples/06_country_data.R`.
+
+## Generating exercise data
+
+`simulate_line_list()` runs an epidemic in one of the countries and returns a line list of cases — the data an exercise hands out:
+
+```r
+ll <- simulate_line_list("Sweway", R0 = 1.8, p_detect = 0.1,
+                         age_breaks = c(0, 20, 45, 65), seed = 1)
+#    id date_onset age_group region vaccinated hospitalised date_hospital  died date_death
+# 1:  1 2026-01-01     45-64     S1      FALSE         TRUE    2026-01-07 FALSE       <NA>
+# 2:  2 2026-01-01      0-19     S2      FALSE         TRUE    2026-01-23 FALSE       <NA>
+# 3:  3 2026-01-04     20-44     S1      FALSE        FALSE          <NA> FALSE       <NA>
+```
+
+- The model runs at **full detail** — all 20 five-year bands and all five regions. `age_breaks` only changes how ages are *reported*.
+- **Every hospitalisation and every death is in the list**; other infections appear with probability `p_detect`.
+- `R0 = NULL` draws one at random from `R0_range`, so nobody needs to know it in advance. The truth is attached as `attr(ll, "truth")`: the R0 used, `p_detect`, and the model itself.
+- The disease is described by arguments, not hard-coded: `latent_period`, `infectious_period`, `susceptibility`, `p_hosp`, `p_death_hosp`, `p_death_comm`, `dur_hosp`, `vacc_coverage` and the three VEs. The defaults are a fast respiratory infection (latent 1 day, infectious 2) with severity rising steeply with age, in an **unvaccinated** population (`vacc_coverage = 0`).
+- Each age-varying parameter takes a single number, one value per five-year band, or a **function of age**, so a whole profile fits on one line:
+
+  ```r
+  simulate_line_list("Sweway",
+    latent_period = 3, infectious_period = 5,
+    p_hosp = function(age) pmin(0.002 * exp(0.045 * (age - 10)), 0.5),
+    vacc_coverage = function(age) ifelse(age >= 65, 0.8, 0))
+  ```
+
+  Anything else (`transmissibility`, `beta_schedule`, …) still goes through `...` to `build_model()`.
+- `n_seed`, `seed_region` and `seed_ages` control the seeding; `within` and `scale_km` the mixing between regions.
+- If the seeded epidemic fades out, the function retries with a new draw (`max_tries`), and warns if it never takes off.
+
+**Dates** are reconstructed from the model's own timings, each drawn per case: infection to onset is the latent period, onset to admission (or to a community death) is the infectious period, and hospital stays average `dur_hosp`. Hospital deaths are drawn per admission, so they follow the model's death *rates* but not its daily death counts exactly.
+
+`admissions_from_line_list()` turns the line list back into the daily admissions `fit_model()` takes, filling in days with no admissions:
+
+```r
+data <- admissions_from_line_list(ll, start_date = min(ll$date_onset))
+fit <- fit_model(model, data[time <= 60], pars = "R0", method = "mcmc")
+```
+
+`examples/07_line_list_exercise.R` runs this end to end: generate the data, look at it, fit R0 from the first 60 days, and compare with the truth. With default settings the fit recovers R0 to within a few percent.
+
+**A caveat worth repeating to participants:** fitting the early epidemic gives a good estimate of R0, but the *level* of admissions depends on the seeding and the severity assumption together, so `hosp_scale` is poorly identified until the data covers more of the epidemic.

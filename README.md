@@ -8,6 +8,7 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 - **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups.
 - A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
 - **Bundled data** for four fictional countries: population by region and five-year age band, plus region polygons, settlements and a population grid for maps.
+- **Synthetic exercise data**: a line list of cases with hospitalisation and death dates, generated from a real run of the model.
 - **Fitting to daily hospital admissions** (national, or by region or age): a quick point estimate, MCMC, or particle MCMC, using [monty](https://mrc-ide.github.io/monty/).
 
 ## Installation
@@ -79,6 +80,9 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `read_demography()`, `region_info()` | The bundled country data, and one row per region |
 | `population_matrix()` | Age × region population matrix for `build_model(N = ...)` |
 | `read_geography()`, `region_distances()`, `plot_region_map()` | Map layers, distances between region centres, and maps of model output |
+| `simulate_line_list()` | Generate a line list of cases for an exercise, with the truth attached |
+| `admissions_from_line_list()` | Daily admissions from a line list, ready for `fit_model()` |
+| `age_contact_matrix()` | A synthetic contact matrix for any set of age groups |
 
 Parameters can be given as a single value, a vector by age group, a vector by region, or an age × region matrix. See `?build_model`.
 
@@ -92,6 +96,7 @@ The scripts in [`examples/`](examples/) are the best place to start:
 4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios.
 5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
+7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
 
 ## Documentation
 

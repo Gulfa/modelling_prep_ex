@@ -17,4 +17,7 @@ utils::globalVariables(c(".", "value", "variable", "time", "sim", "measure",
                          "admissions", "series", "step", "chain",
                          "country", "region", "age_group", "population",
                          "profile", "area_km2", "density_per_km2",
-                         "pop_total", ".value"))
+                         "pop_total", ".value", "inc_infections", "inc_hosp",
+                         "inc_deaths_comm", "date_onset", "date_hospital",
+                         "date_death", "died", "id", "age_group",
+                         "hospitalised", "vaccinated"))
