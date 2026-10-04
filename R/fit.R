@@ -554,13 +554,17 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
     }
     d <- project_summary(x, by = by, t_max = t_max, n_draws = n_draws,
                          measures = measure, seed = seed)
-    p <- ggplot2::ggplot(d, ggplot2::aes(.data[[by[[1]]]], median,
-                                         ymin = lower, ymax = upper))
+    # ymin/ymax belong to the pointrange layer, not the global mapping, so
+    # that other layers (e.g. observed counts) can be added without hitting
+    # inherited aesthetics their data does not have
+    p <- ggplot2::ggplot(d, ggplot2::aes(.data[[by[[1]]]], median))
+    range_aes <- ggplot2::aes(ymin = lower, ymax = upper)
     if (length(by) > 1) {
       p <- p + ggplot2::aes(colour = .data[[by[[2]]]]) +
-        ggplot2::geom_pointrange(position = ggplot2::position_dodge(width = 0.4))
+        ggplot2::geom_pointrange(range_aes,
+                                 position = ggplot2::position_dodge(width = 0.4))
     } else {
-      p <- p + ggplot2::geom_pointrange()
+      p <- p + ggplot2::geom_pointrange(range_aes)
     }
     return(p + ggplot2::labs(x = NULL, y = measure) +
              ggplot2::expand_limits(y = 0) + ggplot2::theme_bw())
