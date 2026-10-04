@@ -97,9 +97,12 @@ until at least this many cases are detected (at most \code{max_tries} times).}
 }
 \value{
 A \code{data.table} with one row per detected case: \code{id}, \code{date_onset},
-\code{age_group}, \code{region}, \code{vaccinated}, \code{hospitalised}, \code{date_hospital},
-\code{died} and \code{date_death}. Use \code{\link[=admissions_from_line_list]{admissions_from_line_list()}} to get the
-daily admissions that \code{\link[=fit_model]{fit_model()}} takes.
+\code{age_group}, \code{age_mid}, \code{region}, \code{vaccinated}, \code{hospitalised},
+\code{date_hospital}, \code{died} and \code{date_death}. \code{age_mid} is the middle of the
+reported age group, which makes it easy to re-aggregate into other age
+groupings, e.g. \code{cut(age_mid, c(0, 20, 65, Inf))}. Use
+\code{\link[=admissions_from_line_list]{admissions_from_line_list()}} to get the daily admissions that
+\code{\link[=fit_model]{fit_model()}} takes.
 }
 \description{
 Runs an epidemic in one of the bundled countries (\code{\link[=read_demography]{read_demography()}}) and

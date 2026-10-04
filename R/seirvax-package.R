@@ -20,4 +20,4 @@ utils::globalVariables(c(".", "value", "variable", "time", "sim", "measure",
                          "pop_total", ".value", "inc_infections", "inc_hosp",
                          "inc_deaths_comm", "date_onset", "date_hospital",
                          "date_death", "died", "id", "age_group",
-                         "hospitalised", "vaccinated"))
+                         "hospitalised", "vaccinated", "age_mid"))

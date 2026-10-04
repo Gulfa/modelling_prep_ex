@@ -76,9 +76,12 @@
 #' @param ... Passed to [build_model()], overriding the built-in defaults.
 #'
 #' @return A `data.table` with one row per detected case: `id`, `date_onset`,
-#'   `age_group`, `region`, `vaccinated`, `hospitalised`, `date_hospital`,
-#'   `died` and `date_death`. Use [admissions_from_line_list()] to get the
-#'   daily admissions that [fit_model()] takes.
+#'   `age_group`, `age_mid`, `region`, `vaccinated`, `hospitalised`,
+#'   `date_hospital`, `died` and `date_death`. `age_mid` is the middle of the
+#'   reported age group, which makes it easy to re-aggregate into other age
+#'   groupings, e.g. `cut(age_mid, c(0, 20, 65, Inf))`. Use
+#'   [admissions_from_line_list()] to get the daily admissions that
+#'   [fit_model()] takes.
 #' @export
 #' @examples
 #' \dontrun{
@@ -146,6 +149,10 @@ simulate_line_list <- function(country = "Sweway", R0 = NULL,
   if (!is.null(age_breaks)) {
     ll[, age_group := regroup_ages(age_group, age_breaks)]
   }
+  # middle of the reported age group, so cases can be re-aggregated into any
+  # coarser grouping, e.g. cut(age_mid, c(0, 20, 65, Inf))
+  ll[, age_mid := age_middle(age_group)]
+  setcolorder(ll, c("id", "date_onset", "age_group", "age_mid"))
   setattr(ll, "truth",
           list(country = country, R0 = R0, p_detect = p_detect,
                start_date = start_date, model = model))
@@ -159,7 +166,7 @@ line_list_model <- function(country, R0, epi, n_seed, seed_region, seed_ages,
                             within, scale_km, ...) {
   N <- population_matrix(country)
   ages <- rownames(N)
-  mid <- age_lower(ages) + 2.5
+  mid <- age_middle(ages)
 
   if (is.null(seed_region)) {
     seed_region <- sample(colnames(N), 1)
@@ -346,7 +353,7 @@ expand_cases <- function(d, n, kind, latent = NULL, infectious = NULL,
 empty_line_list <- function(start_date) {
   d <- if (is.null(start_date)) numeric() else start_date[0]
   data.table(id = integer(), date_onset = d, age_group = character(),
-             region = character(), vaccinated = logical(),
+             age_mid = numeric(), region = character(), vaccinated = logical(),
              hospitalised = logical(), date_hospital = d, died = logical(),
              date_death = d)
 }

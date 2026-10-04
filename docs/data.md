@@ -86,6 +86,7 @@ ll <- simulate_line_list("Sweway", R0 = 1.8, p_detect = 0.1,
 ```
 
 - The model runs at **full detail** — all 20 five-year bands and all five regions. `age_breaks` only changes how ages are *reported*.
+- Each case carries `age_mid`, the middle of its reported age group, so the line list can be re-aggregated into any coarser grouping without parsing labels: `cut(age_mid, c(0, 20, 65, Inf))`. An open-ended top group ("95+", "65+") gets its lower bound plus 2.5.
 - **Every hospitalisation and every death is in the list**; other infections appear with probability `p_detect`.
 - `R0 = NULL` draws one at random from `R0_range`, so nobody needs to know it in advance. The truth is attached as `attr(ll, "truth")`: the R0 used, `p_detect`, and the model itself.
 - The disease is described by arguments, not hard-coded: `latent_period`, `infectious_period`, `susceptibility`, `p_hosp`, `p_death_hosp`, `p_death_comm`, `dur_hosp`, `vacc_coverage` and the three VEs. The defaults are a fast respiratory infection (latent 1 day, infectious 2) with severity rising steeply with age, in an **unvaccinated** population (`vacc_coverage = 0`).

@@ -40,6 +40,16 @@ age_lower <- function(x) {
   as.numeric(sub("[-+].*$", "", as.character(x)))
 }
 
+# Middle of an age group: "0-4" -> 2.5, "20-44" -> 32.5. An open-ended group
+# ("95+") has no middle, so it gets lower + 2.5, the same convention the
+# five-year bands use.
+age_middle <- function(x) {
+  x <- as.character(x)
+  lower <- age_lower(x)
+  upper <- suppressWarnings(as.numeric(sub("^[0-9]+-", "", x)))
+  ifelse(is.na(upper), lower + 2.5, (lower + upper + 1) / 2)
+}
+
 #' One row per region
 #'
 #' @param country Countries to keep (default: all).

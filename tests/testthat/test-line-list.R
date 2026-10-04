@@ -7,8 +7,9 @@ small_line_list <- function(...) {
 
 test_that("the line list has consistent records and dates", {
   ll <- small_line_list()
-  expect_named(ll, c("id", "date_onset", "age_group", "region", "vaccinated",
-                     "hospitalised", "date_hospital", "died", "date_death"))
+  expect_named(ll, c("id", "date_onset", "age_group", "age_mid", "region",
+                     "vaccinated", "hospitalised", "date_hospital", "died",
+                     "date_death"))
   expect_gt(nrow(ll), 0)
   expect_equal(ll$id, seq_len(nrow(ll)))
   expect_false(is.unsorted(ll$date_onset))
@@ -24,6 +25,27 @@ test_that("the line list has consistent records and dates", {
   # only regions of the country, and the model's age bands
   expect_true(all(ll$region %in% paste0("S", 1:5)))
   expect_setequal(levels(ll$age_group), rownames(population_matrix("Sweway")))
+})
+
+test_that("age_mid is the middle of the reported age group", {
+  ll <- small_line_list()
+  mid <- unique(ll[, .(age_group, age_mid)])[order(age_mid)]
+  expect_equal(mid$age_mid[1:3], c(2.5, 7.5, 12.5))      # five-year bands
+  expect_equal(max(mid$age_mid), 97.5)                   # "95+" by convention
+  # it always falls inside the group it labels
+  lower <- age_lower(as.character(mid$age_group))
+  expect_true(all(mid$age_mid > lower & mid$age_mid < lower + 5))
+
+  coarse <- small_line_list(age_breaks = c(0, 20, 45, 65))
+  mids <- unique(coarse[, .(age_group, age_mid)])[order(age_mid)]
+  expect_equal(mids$age_mid, c(10, 32.5, 55, 67.5))
+
+  # re-aggregating by age_mid matches reporting at those breaks directly
+  breaks <- c(0, 20, 45, 65, Inf)
+  from_mid <- small_line_list()[, .N, keyby = .(band = cut(age_mid, breaks,
+                                                           right = FALSE))]
+  direct <- coarse[, .N, keyby = age_group]
+  expect_equal(from_mid$N, direct$N)
 })
 
 test_that("severe cases are always detected and p_detect controls the rest", {
