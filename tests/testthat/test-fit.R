@@ -182,11 +182,21 @@ test_that("distribution plots", {
                        measure = "deaths", n_draws = 5, seed = 1), "ggplot")
   expect_error(plot(fit, "distribution", by = character(0)), "is needed")
 
-  # observed counts can be overlaid without inherit.aes = FALSE
+  # observed counts can be overlaid without inherit.aes = FALSE, whatever
+  # geom they use
   obs <- data.frame(age = c("young", "old"), observed = c(10, 20))
-  p <- plot(fit, "distribution", by = "age", n_draws = 5, seed = 1) +
-    ggplot2::geom_point(ggplot2::aes(age, observed), data = obs)
-  expect_s3_class(ggplot2::ggplot_build(p), "ggplot_built")
+  base <- plot(fit, "distribution", by = "age", n_draws = 5, seed = 1)
+  expect_s3_class(ggplot2::ggplot_build(
+    base + ggplot2::geom_point(ggplot2::aes(age, observed), data = obs)),
+    "ggplot_built")
+  expect_s3_class(ggplot2::ggplot_build(
+    base + ggplot2::geom_errorbar(ggplot2::aes(x = age, ymin = observed,
+                                               ymax = observed), data = obs)),
+    "ggplot_built")
+  two <- plot(fit, "distribution", by = c("age", "region"), n_draws = 5, seed = 1)
+  expect_s3_class(ggplot2::ggplot_build(
+    two + ggplot2::geom_point(ggplot2::aes(age, observed), data = obs)),
+    "ggplot_built")
   expect_error(plot(fit, "distribution", measure = c("deaths", "infections")),
                "single outcome")
 })
