@@ -12,6 +12,7 @@ project_fit(
   n_sim = 1,
   vars = "inc_hosp",
   by = character(0),
+  seed = NULL,
   ...
 )
 }
@@ -28,10 +29,15 @@ project_fit(
 
 \item{vars, by}{Output to keep, as in \code{\link[=get_output]{get_output()}}.}
 
+\item{seed}{Random seed for choosing the draws (\code{NULL} = leave R's seed
+alone, so repeated calls give slightly different bands).}
+
 \item{...}{Passed to \code{\link[=run_model]{run_model()}} (e.g. \code{dt}, \code{n_threads}).}
 }
 \value{
 A \code{data.table} as from \code{\link[=get_output]{get_output()}} with an extra \code{draw} column.
+The parameter values behind each \code{draw} are attached as
+\code{attr(x, "draws")}.
 }
 \description{
 Runs the model for parameter draws from the fit (posterior samples for

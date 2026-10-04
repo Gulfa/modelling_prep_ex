@@ -384,16 +384,24 @@ fit_draws <- function(fit, n_draws) {
 #' @param type `"deterministic"` or `"stochastic"`.
 #' @param n_sim Stochastic simulations per draw.
 #' @param vars,by Output to keep, as in [get_output()].
+#' @param seed Random seed for choosing the draws (`NULL` = leave R's seed
+#'   alone, so repeated calls give slightly different bands).
 #' @param ... Passed to [run_model()] (e.g. `dt`, `n_threads`).
 #'
 #' @return A `data.table` as from [get_output()] with an extra `draw` column.
+#'   The parameter values behind each `draw` are attached as
+#'   `attr(x, "draws")`.
 #' @export
 project_fit <- function(fit, t_max = NULL, n_draws = 100,
                         type = c("deterministic", "stochastic"), n_sim = 1,
-                        vars = "inc_hosp", by = character(0), ...) {
+                        vars = "inc_hosp", by = character(0), seed = NULL,
+                        ...) {
   type <- match.arg(type)
   if (is.null(t_max)) {
     t_max <- max(fit$data$time)
+  }
+  if (!is.null(seed)) {
+    set.seed(seed)
   }
   draws <- fit_draws(fit, n_draws)
   res <- lapply(seq_len(nrow(draws)), function(i) {
@@ -403,6 +411,9 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
   })
   res <- rbindlist(res)
   setcolorder(res, c("time", "draw"))
+  # keep the parameter values, so callers can pair a trajectory with the
+  # parameters that produced it (plot() needs nb_size per draw)
+  setattr(res, "draws", draws)
   res[]
 }
 
@@ -449,11 +460,12 @@ summary.seirvax_fit <- function(object, ...) {
 #' @param type `"fit"` or `"trace"`.
 #' @param t_max Last day to show (default: last day of the data).
 #' @param n_draws Number of posterior draws used.
+#' @param seed Random seed for the draws and the observation noise.
 #' @param ... Unused.
 #' @return A ggplot object.
 #' @export
 plot.seirvax_fit <- function(x, type = c("fit", "trace"), t_max = NULL,
-                             n_draws = 100, ...) {
+                             n_draws = 100, seed = NULL, ...) {
   type <- match.arg(type)
   if (type == "trace") {
     if (is.null(x$samples)) {
@@ -472,8 +484,8 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace"), t_max = NULL,
   }
 
   proj <- project_fit(x, t_max = t_max, n_draws = n_draws,
-                      by = c("age", "region"))
-  draws <- fit_draws(x, n_draws)
+                      by = c("age", "region"), seed = seed)
+  draws <- attr(proj, "draws")   # the draws behind the trajectories
   nb_size <- if ("nb_size" %in% x$pars) NULL else x$nb_size
   series <- x$series
   mod <- rbindlist(lapply(seq_len(nrow(series)), function(k) {

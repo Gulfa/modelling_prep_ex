@@ -4,7 +4,14 @@
 \alias{plot.seirvax_fit}
 \title{Plot a fit}
 \usage{
-\method{plot}{seirvax_fit}(x, type = c("fit", "trace"), t_max = NULL, n_draws = 100, ...)
+\method{plot}{seirvax_fit}(
+  x,
+  type = c("fit", "trace"),
+  t_max = NULL,
+  n_draws = 100,
+  seed = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{Result of \code{\link[=fit_model]{fit_model()}}.}
@@ -14,6 +21,8 @@
 \item{t_max}{Last day to show (default: last day of the data).}
 
 \item{n_draws}{Number of posterior draws used.}
+
+\item{seed}{Random seed for the draws and the observation noise.}
 
 \item{...}{Unused.}
 }

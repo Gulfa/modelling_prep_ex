@@ -80,6 +80,40 @@ test_that("pmcmc runs on the stochastic model", {
   expect_true(all(is.finite(fit$samples$density)))
 })
 
+test_that("project_fit attaches the draws it used and can be seeded", {
+  truth <- small_model(R0 = 1.7)
+  set.seed(1)
+  d <- det_admissions(truth, 120)
+  d[, admissions := rnbinom(.N, size = 10, mu = admissions + 0.1)]
+  fit <- suppressMessages(fit_model(truth, d, pars = c("R0", "nb_size"),
+                                    method = "mcmc", n_steps = 400,
+                                    n_chains = 2, seed = 1))
+  p1 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 42)
+  draws <- attr(p1, "draws")
+  expect_equal(dim(draws), c(10, 2))
+  expect_equal(colnames(draws), c("R0", "nb_size"))
+  expect_setequal(unique(p1$draw), 1:10)
+
+  # the same seed gives the same draws and the same trajectories
+  p2 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 42)
+  expect_equal(attr(p2, "draws"), draws)
+  expect_equal(p2$value, p1$value)
+  p3 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 7)
+  expect_false(isTRUE(all.equal(attr(p3, "draws"), draws)))
+
+  # each trajectory really comes from its own draw
+  one <- project_fit(fit, t_max = 60, n_draws = 1, seed = 3)
+  m <- fit_rebuild(fit$base_model, attr(one, "draws")[1, ])
+  direct <- get_output(run_model(m, t_max = 60), "inc_hosp")
+  expect_equal(one$value, direct$value)
+
+  # plot() uses those same draws rather than drawing a second set
+  expect_s3_class(plot(fit, n_draws = 10, seed = 42), "ggplot")
+  a <- plot(fit, n_draws = 10, seed = 1)$layers[[1]]$data
+  b <- plot(fit, n_draws = 10, seed = 1)$layers[[1]]$data
+  expect_equal(a, b)
+})
+
 test_that("projections, plots and printing work", {
   truth <- small_model(R0 = 1.7)
   d <- det_admissions(truth, 60, by = "region")

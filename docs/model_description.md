@@ -172,4 +172,21 @@ With default uniform priors, the `optim` estimate is the maximum likelihood esti
 
 **Time alignment.** Day 0 of the data is time 0 of the model, and `admissions` on day `t` are admissions during day $(t-1, t]$. If the epidemic started before the data, choose the model's seeding (`I0`) to match. Fitting the start date isn't supported yet.
 
-**Projections.** `project_fit()` and `plot(fit)` re-run the model for parameter draws: posterior samples, or draws from the normal approximation for `optim`. Each draw starts again from time 0. For `pmcmc` fits, projections are therefore not conditioned on the particular stochastic path that the data followed.
+## Uncertainty in projections
+
+`project_fit()` and `plot(fit)` propagate parameter uncertainty by Monte Carlo: draw parameters, rebuild the model for each draw, run it, and take quantiles across draws at each time point.
+
+- **Where the draws come from.** For `"mcmc"` and `"pmcmc"`, a random subsample (without replacement) of the pooled post-burn-in samples. For `"optim"`, draws from a multivariate normal at the estimate with the covariance implied by the curvature there, rejected until they fall inside the prior's range. Draws are whole parameter vectors, so correlations between parameters are kept.
+- **Each draw rebuilds the model**, so a drawn `R0` is recalibrated to its own β, and runs from time 0.
+- `attr(x, "draws")` on the result holds the parameter values behind each `draw`, and `seed` makes the choice reproducible.
+
+What the band does **not** include:
+
+| | |
+|---|---|
+| Process noise | only with `project_fit(type = "stochastic", n_sim = ...)`; the default is deterministic, one trajectory per draw |
+| Observation noise | only in `plot(fit)`, as the lighter outer band |
+| Parameters that were not fitted | fixed at the model's values — severity, seeding, contact matrices, durations, population |
+| Model structure | not represented at all |
+
+Two more things to keep in mind. The bands are **pointwise**: the median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory. And for `pmcmc` fits, projections restart from time 0 rather than from the filtered state at the end of the data, so they are not conditioned on the particular epidemic the data came from.
