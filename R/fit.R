@@ -417,6 +417,76 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
   res[]
 }
 
+#' Outcomes of a fitted model, by age and region
+#'
+#' Totals at the end of the projection (infections, hospital admissions and
+#' deaths) and the peak of hospital occupancy, broken down by age group
+#' and/or region, with the uncertainty from the fit. Each posterior draw gives
+#' one set of outcomes; the table reports the median and a central interval
+#' over draws.
+#'
+#' The `share_*` columns give each stratum's share of the national total,
+#' computed within each draw and then summarised, so they answer "what
+#' fraction of admissions are in 65+, and how sure are we?" rather than
+#' dividing two uncertain totals. Shares are reported for the totals only, not
+#' for the peak measures: strata peak at different times, so their peaks do
+#' not add up to the national peak.
+#'
+#' @inheritParams project_fit
+#' @param by Stratifications to report, any of `"age"`, `"region"` and
+#'   `"vacc_status"`. The default, `character(0)`, gives national totals.
+#' @param measures Which outcomes to report (default: all). One or more of
+#'   `"infections"`, `"hosp_admissions"`, `"deaths"`,
+#'   `"peak_hosp_occupancy"` and `"peak_hosp_day"`.
+#' @param level Width of the interval.
+#'
+#' @return A `data.table` with the `by` columns, `measure`, `mean`, `median`,
+#'   `lower` and `upper`, and the same three summaries of `share` when `by` is
+#'   given.
+#' @export
+#' @examples
+#' \dontrun{
+#' fit <- fit_model(model, data, pars = "R0", method = "mcmc")
+#' project_summary(fit, by = "age", t_max = 365)
+#' project_summary(fit, by = c("region", "age"), measures = "hosp_admissions")
+#' }
+project_summary <- function(fit, by = character(0), t_max = NULL,
+                            n_draws = 100,
+                            type = c("deterministic", "stochastic"),
+                            n_sim = 1, measures = NULL, level = 0.95,
+                            seed = NULL, ...) {
+  by <- check_by(by)
+  if (is.null(measures)) {
+    measures <- outcome_measures
+  }
+  unknown <- setdiff(measures, outcome_measures)
+  if (length(unknown) > 0) {
+    stop(sprintf("'measures' must be a subset of: %s",
+                 paste(outcome_measures, collapse = ", ")))
+  }
+  vars <- c("cum_infections", "cum_hosp", "D", "H")
+  proj <- project_fit(fit, t_max = t_max, n_draws = n_draws, type = type,
+                      n_sim = n_sim, vars = vars, by = by, seed = seed, ...)
+  per_draw <- trajectory_measures(proj, c("draw", "sim"), by)
+  per_draw <- per_draw[measure %in% measures]
+
+  ret <- summarise_measures(per_draw, by, level)
+  # Shares only make sense for the totals: strata peak at different times, so
+  # a "share of the peak" would not add up to anything meaningful.
+  share_of <- intersect(measures, c("infections", "hosp_admissions", "deaths"))
+  if (length(by) > 0 && length(share_of) > 0) {
+    sh <- per_draw[measure %in% share_of]
+    sh[, value := value / sum(value), by = c("draw", "sim", "measure")]
+    shares <- summarise_measures(sh, by, level)
+    setnames(shares, c("mean", "median", "lower", "upper"),
+             paste0("share_", c("mean", "median", "lower", "upper")))
+    ret <- merge(ret, shares, by = c(by, "measure"), all.x = TRUE)
+  }
+  setorderv(ret, c("measure", by))
+  ret[, measure := as.character(measure)]
+  ret[]
+}
+
 #' @export
 print.seirvax_fit <- function(x, ...) {
   cat(sprintf("<seirvax_fit> method: %s\n", x$method))
@@ -454,19 +524,47 @@ summary.seirvax_fit <- function(object, ...) {
 #' `type = "fit"` shows the data with the modelled admissions: the median and
 #' 95% interval of the expected admissions over parameter draws (see
 #' [project_fit()]), and a lighter 95% predictive interval that also
-#' includes the negative binomial observation noise. `type = "trace"` shows MCMC traces.
+#' includes the negative binomial observation noise. `type = "trace"` shows
+#' MCMC traces. `type = "distribution"` shows one outcome broken down by age
+#' and/or region, with its uncertainty (see [project_summary()]).
 #'
 #' @param x Result of [fit_model()].
-#' @param type `"fit"` or `"trace"`.
+#' @param type `"fit"`, `"trace"` or `"distribution"`.
+#' @param by Stratification for `type = "distribution"`: the first is the
+#'   axis, a second is shown by colour.
+#' @param measure Outcome for `type = "distribution"`, see
+#'   [project_summary()].
 #' @param t_max Last day to show (default: last day of the data).
 #' @param n_draws Number of posterior draws used.
 #' @param seed Random seed for the draws and the observation noise.
 #' @param ... Unused.
 #' @return A ggplot object.
 #' @export
-plot.seirvax_fit <- function(x, type = c("fit", "trace"), t_max = NULL,
-                             n_draws = 100, seed = NULL, ...) {
+plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
+                             t_max = NULL, n_draws = 100, by = "age",
+                             measure = "hosp_admissions", seed = NULL, ...) {
   type <- match.arg(type)
+  if (type == "distribution") {
+    if (length(measure) != 1) {
+      stop("'measure' must be a single outcome")
+    }
+    by <- check_by(by)
+    if (length(by) == 0) {
+      stop("'by' is needed for a distribution plot, e.g. by = \"age\"")
+    }
+    d <- project_summary(x, by = by, t_max = t_max, n_draws = n_draws,
+                         measures = measure, seed = seed)
+    p <- ggplot2::ggplot(d, ggplot2::aes(.data[[by[[1]]]], median,
+                                         ymin = lower, ymax = upper))
+    if (length(by) > 1) {
+      p <- p + ggplot2::aes(colour = .data[[by[[2]]]]) +
+        ggplot2::geom_pointrange(position = ggplot2::position_dodge(width = 0.4))
+    } else {
+      p <- p + ggplot2::geom_pointrange()
+    }
+    return(p + ggplot2::labs(x = NULL, y = measure) +
+             ggplot2::expand_limits(y = 0) + ggplot2::theme_bw())
+  }
   if (type == "trace") {
     if (is.null(x$samples)) {
       stop("No MCMC samples: fit with method = \"mcmc\" or \"pmcmc\"")

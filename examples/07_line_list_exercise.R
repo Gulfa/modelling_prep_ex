@@ -123,6 +123,17 @@ proj <- project_fit(fit, t_max = 150, n_draws = 100, vars = "H")
 proj[, .(median = median(value), upper = quantile(value, 0.975)), by = time][
   time %in% c(60, 90, 120, 150)]
 
+# Who ends up in hospital? Totals by age and region with the fit's uncertainty,
+# and each stratum's share of the national total.
+project_summary(fit, by = "age", t_max = 365, n_draws = 100, seed = 1)
+project_summary(fit, by = "region", t_max = 365, n_draws = 100,
+                measures = c("hosp_admissions", "deaths"), seed = 1)
+plot(fit, type = "distribution", by = "age", measure = "hosp_admissions",
+     t_max = 365, n_draws = 100, seed = 1)
+
+# Note how narrow the age shares are when only R0 is fitted: the age pattern
+# comes from the contact matrix and the severity assumptions, not from the data.
+
 # What actually happened, from the full data:
 admissions_from_line_list(ll, start_date = start)[time %in% c(60, 90, 120, 150)]
 

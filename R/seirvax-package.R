@@ -14,7 +14,7 @@
 utils::globalVariables(c(".", "value", "variable", "time", "sim", "measure",
                          "median", "lower", "upper", ".SD", ".trace",
                          ".N", "draw", "predicted", "pred_lower", "pred_upper",
-                         "admissions", "series", "step", "chain",
+                         "admissions", "series", "step", "chain", "share",
                          "country", "region", "age_group", "population",
                          "profile", "area_km2", "density_per_km2",
                          "pop_total", ".value", "inc_infections", "inc_hosp",

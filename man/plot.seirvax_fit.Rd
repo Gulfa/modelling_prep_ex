@@ -6,9 +6,11 @@
 \usage{
 \method{plot}{seirvax_fit}(
   x,
-  type = c("fit", "trace"),
+  type = c("fit", "trace", "distribution"),
   t_max = NULL,
   n_draws = 100,
+  by = "age",
+  measure = "hosp_admissions",
   seed = NULL,
   ...
 )
@@ -16,11 +18,17 @@
 \arguments{
 \item{x}{Result of \code{\link[=fit_model]{fit_model()}}.}
 
-\item{type}{\code{"fit"} or \code{"trace"}.}
+\item{type}{\code{"fit"}, \code{"trace"} or \code{"distribution"}.}
 
 \item{t_max}{Last day to show (default: last day of the data).}
 
 \item{n_draws}{Number of posterior draws used.}
+
+\item{by}{Stratification for \code{type = "distribution"}: the first is the
+axis, a second is shown by colour.}
+
+\item{measure}{Outcome for \code{type = "distribution"}, see
+\code{\link[=project_summary]{project_summary()}}.}
 
 \item{seed}{Random seed for the draws and the observation noise.}
 
@@ -33,5 +41,7 @@ A ggplot object.
 \code{type = "fit"} shows the data with the modelled admissions: the median and
 95\% interval of the expected admissions over parameter draws (see
 \code{\link[=project_fit]{project_fit()}}), and a lighter 95\% predictive interval that also
-includes the negative binomial observation noise. \code{type = "trace"} shows MCMC traces.
+includes the negative binomial observation noise. \code{type = "trace"} shows
+MCMC traces. \code{type = "distribution"} shows one outcome broken down by age
+and/or region, with its uncertainty (see \code{\link[=project_summary]{project_summary()}}).
 }

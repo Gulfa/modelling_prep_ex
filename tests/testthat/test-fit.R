@@ -127,3 +127,60 @@ test_that("projections, plots and printing work", {
   expect_equal(summary(fit), fit$estimates)
   expect_setequal(fit_parameters()$name, c("R0", "hosp_scale", "nb_size"))
 })
+
+test_that("project_summary reports outcomes by age and region", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 100)
+  fit <- fit_model(truth, d, pars = "R0")
+
+  nat <- project_summary(fit, t_max = 200, n_draws = 10, seed = 1)
+  expect_setequal(names(nat), c("measure", "mean", "median", "lower", "upper"))
+  expect_setequal(nat$measure, c("infections", "hosp_admissions", "deaths",
+                                 "peak_hosp_occupancy", "peak_hosp_day"))
+  expect_true(all(nat$lower <= nat$median & nat$median <= nat$upper))
+
+  by_age <- project_summary(fit, by = "age", t_max = 200, n_draws = 10,
+                            measures = c("infections", "hosp_admissions"),
+                            seed = 1)
+  expect_setequal(by_age$age, c("young", "old"))
+  expect_setequal(by_age$measure, c("infections", "hosp_admissions"))
+  expect_true(all(c("share_median", "share_lower", "share_upper") %in% names(by_age)))
+
+  # strata add up to the national total (means are additive)
+  totals <- by_age[, .(total = sum(mean)), by = measure]
+  expect_equal(totals$total,
+               nat[match(totals$measure, measure)]$mean, tolerance = 1e-6)
+  # shares add to 1 within each measure
+  expect_equal(by_age[, sum(share_median), by = measure]$V1, c(1, 1),
+               tolerance = 1e-3)
+
+  two <- project_summary(fit, by = c("age", "region"), t_max = 120,
+                         n_draws = 5, measures = "deaths", seed = 1)
+  expect_equal(nrow(two), 4)
+  expect_equal(sum(two$share_mean), 1, tolerance = 1e-6)
+})
+
+test_that("project_summary validates and is reproducible", {
+  fit <- fit_model(small_model(R0 = 1.7), det_admissions(small_model(R0 = 1.7), 80),
+                   pars = "R0")
+  expect_error(project_summary(fit, measures = "cases"), "subset of")
+  expect_error(project_summary(fit, by = "county"), "subset")
+  a <- project_summary(fit, by = "age", t_max = 100, n_draws = 8, seed = 5)
+  b <- project_summary(fit, by = "age", t_max = 100, n_draws = 8, seed = 5)
+  expect_equal(a, b)
+  # peaks have no meaningful share across strata
+  expect_true(all(is.na(a[measure %in% c("peak_hosp_day",
+                                         "peak_hosp_occupancy")]$share_mean)))
+})
+
+test_that("distribution plots", {
+  fit <- fit_model(small_model(R0 = 1.7), det_admissions(small_model(R0 = 1.7), 80),
+                   pars = "R0")
+  expect_s3_class(plot(fit, "distribution", by = "age", n_draws = 5, seed = 1),
+                  "ggplot")
+  expect_s3_class(plot(fit, "distribution", by = c("age", "region"),
+                       measure = "deaths", n_draws = 5, seed = 1), "ggplot")
+  expect_error(plot(fit, "distribution", by = character(0)), "is needed")
+  expect_error(plot(fit, "distribution", measure = c("deaths", "infections")),
+               "single outcome")
+})

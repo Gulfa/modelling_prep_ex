@@ -76,6 +76,7 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `fit_model()` | Fit `R0` (and optionally `hosp_scale`, `nb_size`) to daily hospital admissions |
 | `fit_parameters()` | Parameters that can be fitted, with default priors |
 | `project_fit()` | Run the model over posterior draws, e.g. to project beyond the data |
+| `project_summary()` | Totals and peaks by age and region from a fit, with uncertainty |
 | `example_data()` | Made-up example population, contact matrices and parameters |
 | `read_demography()`, `region_info()` | The bundled country data, and one row per region |
 | `population_matrix()` | Age × region population matrix for `build_model(N = ...)` |

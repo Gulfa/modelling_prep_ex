@@ -14,36 +14,47 @@
 #' @export
 summary.seirvax_run <- function(object, by = character(0), level = 0.95, ...) {
   by <- check_by(by)
-  t_end <- max(object$time)
-  final <- get_output(object, c("cum_infections", "cum_hosp", "D"), by)
-  final <- final[time == t_end]
-  final[, measure := c(cum_infections = "infections", cum_hosp = "hosp_admissions",
-                       D = "deaths")[variable]]
-
-  H <- get_output(object, "H", by)
-  peak <- H[, .(peak_hosp_occupancy = max(value),
-                peak_hosp_day = time[which.max(value)]), by = c("sim", by)]
-  peak <- melt(peak, id.vars = c("sim", by), variable.name = "measure",
-               variable.factor = FALSE)
-
-  per_sim <- rbind(final[, c("sim", by, "measure", "value"), with = FALSE],
-                   peak[, c("sim", by, "measure", "value"), with = FALSE])
-  measures <- c("infections", "hosp_admissions", "deaths",
-                "peak_hosp_occupancy", "peak_hosp_day")
-  per_sim[, measure := factor(measure, measures)]
+  d <- get_output(object, c("cum_infections", "cum_hosp", "D", "H"), by)
+  per_sim <- trajectory_measures(d, "sim", by)
 
   if (object$type == "deterministic") {
     ret <- per_sim[, c(by, "measure", "value"), with = FALSE]
   } else {
-    a <- (1 - level) / 2
-    ret <- per_sim[, .(mean = mean(value), median = stats::median(value),
-                       lower = stats::quantile(value, a, names = FALSE),
-                       upper = stats::quantile(value, 1 - a, names = FALSE)),
-                   by = c(by, "measure")]
+    ret <- summarise_measures(per_sim, by, level)
   }
   setorderv(ret, c("measure", by))
   ret[, measure := as.character(measure)]
   ret[]
+}
+
+outcome_measures <- c("infections", "hosp_admissions", "deaths",
+                      "peak_hosp_occupancy", "peak_hosp_day")
+
+# Outcomes of each trajectory (identified by the `id` columns): totals at the
+# end of the run, and the peak of hospital occupancy with its timing.
+trajectory_measures <- function(d, id, by) {
+  final <- d[variable %in% c("cum_infections", "cum_hosp", "D") &
+               time == max(time)]
+  final[, measure := c(cum_infections = "infections",
+                       cum_hosp = "hosp_admissions", D = "deaths")[variable]]
+  peak <- d[variable == "H",
+            .(peak_hosp_occupancy = max(value),
+              peak_hosp_day = time[which.max(value)]), by = c(id, by)]
+  peak <- melt(peak, id.vars = c(id, by), variable.name = "measure",
+               variable.factor = FALSE)
+  cols <- c(id, by, "measure", "value")
+  ret <- rbind(final[, cols, with = FALSE], peak[, cols, with = FALSE])
+  ret[, measure := factor(measure, outcome_measures)]
+  ret[]
+}
+
+# Median, mean and a central interval over trajectories
+summarise_measures <- function(per_traj, by, level) {
+  a <- (1 - level) / 2
+  per_traj[, .(mean = mean(value), median = stats::median(value),
+               lower = stats::quantile(value, a, names = FALSE),
+               upper = stats::quantile(value, 1 - a, names = FALSE)),
+           by = c(by, "measure")]
 }
 
 #' Plot a model run

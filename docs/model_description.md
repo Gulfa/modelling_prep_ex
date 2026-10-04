@@ -189,4 +189,8 @@ What the band does **not** include:
 | Parameters that were not fitted | fixed at the model's values — severity, seeding, contact matrices, durations, population |
 | Model structure | not represented at all |
 
+`project_summary()` applies the same machinery to end-of-projection outcomes: infections, hospital admissions, deaths and the peak of hospital occupancy, broken down by age group and/or region, summarised over draws. It also reports each stratum's `share` of the national total, computed within each draw, which is the honest way to ask "what fraction of admissions are in 65+?" Shares are given for the totals only — strata peak at different times, so their peaks do not add up to the national peak.
+
+A caveat specific to breakdowns: if only `R0` is fitted, the *shape* of the age and region distribution is fixed by the contact matrix and the severity parameters, so its interval will be very narrow however uncertain the totals are. That narrowness reflects the assumptions, not evidence from the data.
+
 Two more things to keep in mind. The bands are **pointwise**: the median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory. And for `pmcmc` fits, projections restart from time 0 rather than from the filtered state at the end of the data, so they are not conditioned on the particular epidemic the data came from.
