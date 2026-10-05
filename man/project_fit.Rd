@@ -30,7 +30,7 @@ keeps R0 rather than beta.}
 \item{from}{First day of the projection (default: the last day of the
 data). \code{from = 0} gives the whole epidemic, including the fitted period.}
 
-\item{t_max}{Last day to run to (default: 90 days after \code{from}).}
+\item{t_max}{Last day to run to (default: 90 days after the data ends).}
 
 \item{n_draws}{Number of posterior draws (MCMC fits).}
 

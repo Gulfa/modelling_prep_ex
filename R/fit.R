@@ -401,7 +401,7 @@ fit_draws <- function(fit, n_draws) {
 #'   keeps R0 rather than beta.
 #' @param from First day of the projection (default: the last day of the
 #'   data). `from = 0` gives the whole epidemic, including the fitted period.
-#' @param t_max Last day to run to (default: 90 days after `from`).
+#' @param t_max Last day to run to (default: 90 days after the data ends).
 #' @param n_draws Number of posterior draws (MCMC fits).
 #' @param type `"deterministic"` or `"stochastic"`.
 #' @param n_sim Stochastic simulations per draw.
@@ -431,7 +431,7 @@ project_fit <- function(fit, model = NULL, from = NULL, t_max = NULL,
   from <- from %||% max(fit$data$time)
   check_range(from, "from")
   if (is.null(t_max)) {
-    t_max <- from + 90
+    t_max <- max(fit$data$time) + 90   # 90 days beyond the data
   }
   if (t_max <= from) {
     stop("'t_max' must be after 'from'")
@@ -637,7 +637,9 @@ summary.seirvax_fit <- function(object, ...) {
 #' [project_fit()]), and a lighter 95% predictive interval that also
 #' includes the negative binomial observation noise. `type = "trace"` shows
 #' MCMC traces. `type = "distribution"` shows one outcome broken down by age
-#' and/or region, with its uncertainty (see [project_summary()]).
+#' and/or region, with its uncertainty (see [project_summary()]). It covers
+#' the period the data covers unless `t_max` says otherwise, so the numbers
+#' can be compared with the observed ones.
 #'
 #' @param x Result of [fit_model()].
 #' @param type `"fit"`, `"trace"` or `"distribution"`.
@@ -663,8 +665,10 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
     if (length(by) == 0) {
       stop("'by' is needed for a distribution plot, e.g. by = \"age\"")
     }
-    d <- project_summary(x, by = by, t_max = t_max, n_draws = n_draws,
-                         measures = measure, seed = seed)
+    # totals over the period the data covers, so they can be compared with
+    # the observed counts; pass t_max to look further ahead
+    d <- project_summary(x, by = by, t_max = t_max %||% max(x$data$time),
+                         n_draws = n_draws, measures = measure, seed = seed)
     # Every aesthetic belongs to the pointrange layer, and none to the plot,
     # so observed data can be added as another layer without inheriting
     # mappings its own data cannot supply.

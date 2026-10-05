@@ -43,5 +43,7 @@ A ggplot object.
 \code{\link[=project_fit]{project_fit()}}), and a lighter 95\% predictive interval that also
 includes the negative binomial observation noise. \code{type = "trace"} shows
 MCMC traces. \code{type = "distribution"} shows one outcome broken down by age
-and/or region, with its uncertainty (see \code{\link[=project_summary]{project_summary()}}).
+and/or region, with its uncertainty (see \code{\link[=project_summary]{project_summary()}}). It covers
+the period the data covers unless \code{t_max} says otherwise, so the numbers
+can be compared with the observed ones.
 }

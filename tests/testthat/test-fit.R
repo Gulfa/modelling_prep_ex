@@ -267,6 +267,10 @@ test_that("projections start after the fit by default", {
   expect_equal(min(p$time), max(d$time))          # starts where the data ends
   expect_equal(max(p$time), max(d$time) + 90)     # 90 days by default
 
+  # the default horizon is 90 days beyond the data whatever `from` is
+  expect_equal(max(project_fit(fit, from = 0, n_draws = 2, seed = 1)$time),
+               max(d$time) + 90)
+
   late <- project_fit(fit, t_max = 150, n_draws = 3, seed = 1)
   expect_equal(range(late$time), c(max(d$time), 150))
 
@@ -312,4 +316,29 @@ test_that("pmcmc projections continue from the filtered state", {
   inc <- get_output(conditioned, "inc_hosp")[
     , .(med = stats::median(value)), by = time][order(time)]
   expect_lt(inc$med[2], 1.3 * inc$med[3])
+})
+
+test_that("the distribution plot covers the period the data covers", {
+  # otherwise its numbers cannot be compared with the observed counts
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 60)
+  fit <- fit_model(truth, d, pars = "R0")
+
+  shown <- as.data.table(plot(fit, "distribution", by = "age",
+                              measure = "cum_hosp", n_draws = 5,
+                              seed = 1)$data)
+  expected <- project_summary(fit, by = "age", t_max = max(d$time),
+                              measures = "cum_hosp", n_draws = 5, seed = 1)
+  expect_equal(shown$median, expected$median)
+
+  # and the whole epidemic is much larger, which is what it used to show
+  later <- project_summary(fit, by = "age", t_max = max(d$time) + 90,
+                           measures = "cum_hosp", n_draws = 5, seed = 1)
+  expect_gt(sum(later$median), 5 * sum(shown$median))
+
+  # t_max still looks further ahead on request
+  ahead <- as.data.table(plot(fit, "distribution", by = "age",
+                              measure = "cum_hosp", t_max = max(d$time) + 90,
+                              n_draws = 5, seed = 1)$data)
+  expect_equal(ahead$median, later$median)
 })

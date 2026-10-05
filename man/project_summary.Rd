@@ -37,7 +37,7 @@ epidemic including the fitted period, which is usually what a total is
 meant to mean. For \code{"pmcmc"} fits, a later \code{from} conditions on the data
 (see \code{\link[=project_fit]{project_fit()}}), but then the totals only count from there.}
 
-\item{t_max}{Last day to run to (default: 90 days after \code{from}).}
+\item{t_max}{Last day to run to (default: 90 days after the data ends).}
 
 \item{n_draws}{Number of posterior draws (MCMC fits).}
 
