@@ -78,6 +78,8 @@ summarise_measures <- function(per_traj, by, level) {
 #'   The default is 50 for `style = "spaghetti"` and none for `"ribbon"`,
 #'   where you can still ask for some.
 #' @param show_median Draw the median on top of the spaghetti.
+#' @param alpha Opacity of the individual trajectories (`NULL` chooses by how
+#'   many there are).
 #' @param level Width of the interval for `style = "ribbon"`.
 #' @param ... Unused.
 #'
@@ -91,7 +93,7 @@ summarise_measures <- function(per_traj, by, level) {
 plot.seirvax_run <- function(x, var = "H", by = character(0),
                              style = c("spaghetti", "ribbon"),
                              n_traces = NULL, show_median = TRUE,
-                             level = 0.95, ...) {
+                             level = 0.95, alpha = NULL, ...) {
   if (length(var) != 1) {
     stop("'var' must be a single variable")
   }
@@ -109,11 +111,12 @@ plot.seirvax_run <- function(x, var = "H", by = character(0),
     p <- ggplot2::ggplot(d, ggplot2::aes(time, value)) + map_colour +
       ggplot2::geom_line()
   } else {
-    traces <- function(p, alpha) {
+    traces <- function(p, default_alpha) {
       tr <- d[sim %in% seq_len(min(n_traces, x$n_sim))]
       tr[, .trace := do.call(paste, c(list(sim), .SD)), .SDcols = by]
       p + ggplot2::geom_line(ggplot2::aes(y = value, group = .trace),
-                             data = tr, alpha = alpha, linewidth = 0.3)
+                             data = tr, alpha = alpha %||% default_alpha,
+                             linewidth = 0.4)
     }
     q <- NULL
     if (style == "ribbon" || show_median) {
@@ -125,14 +128,13 @@ plot.seirvax_run <- function(x, var = "H", by = character(0),
     }
     p <- ggplot2::ggplot(q %||% d, ggplot2::aes(time)) + map_colour
     if (style == "spaghetti") {
-      # fainter lines the more there are, so the bulk stays readable
-      p <- traces(p, max(0.08, min(0.6, 15 / min(n_traces, x$n_sim))))
+      p <- traces(p, trace_alpha(min(n_traces, x$n_sim)))
       if (show_median) {
         p <- p + ggplot2::geom_line(ggplot2::aes(y = median), linewidth = 0.8)
       }
     } else {
       if (n_traces > 0) {
-        p <- traces(p, 0.2)
+        p <- traces(p, 0.35)
       }
       p <- p +
         ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper),
@@ -143,5 +145,33 @@ plot.seirvax_run <- function(x, var = "H", by = character(0),
   if (length(by) > 1) {
     p <- p + ggplot2::facet_wrap(by[-1], scales = "free_y")
   }
+  if (length(by) > 0) {
+    p <- p + dark2_scales(levels(d[[by[[1]]]]))
+  }
   p + ggplot2::labs(x = "Day", y = var) + ggplot2::theme_bw()
+}
+
+# Plot styling -------------------------------------------------------------
+
+# The package's qualitative palette: ColorBrewer Dark2, interpolated when
+# there are more groups than it has colours (eight).
+dark2_colours <- function(n) {
+  base <- scales::brewer_pal(palette = "Dark2")(8)
+  if (n <= 8) base[seq_len(n)] else grDevices::colorRampPalette(base)(n)
+}
+
+# Colour and fill scales over a known set of levels. Manual scales rather than
+# discrete_scale() so this works the same across ggplot2 versions.
+dark2_scales <- function(levels) {
+  cols <- stats::setNames(dark2_colours(length(levels)), levels)
+  list(ggplot2::scale_colour_manual(values = cols, drop = FALSE,
+                                    na.value = "grey60"),
+       ggplot2::scale_fill_manual(values = cols, drop = FALSE,
+                                  na.value = "grey60"))
+}
+
+# How opaque individual trajectories should be: fainter the more there are,
+# but never so faint that a single line is hard to follow.
+trace_alpha <- function(n) {
+  max(0.3, min(0.85, 25 / max(n, 1)))
 }

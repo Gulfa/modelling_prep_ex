@@ -12,6 +12,7 @@
   n_traces = NULL,
   show_median = TRUE,
   level = 0.95,
+  alpha = NULL,
   ...
 )
 }
@@ -33,6 +34,9 @@ where you can still ask for some.}
 \item{show_median}{Draw the median on top of the spaghetti.}
 
 \item{level}{Width of the interval for \code{style = "ribbon"}.}
+
+\item{alpha}{Opacity of the individual trajectories (\code{NULL} chooses by how
+many there are).}
 
 \item{...}{Unused.}
 }

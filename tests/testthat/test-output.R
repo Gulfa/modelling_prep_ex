@@ -52,3 +52,41 @@ test_that("run_model can keep a subset of variables", {
   expect_equal(names(res$states), c("H", "inc_deaths"))
   expect_error(run_model(small_model(), t_max = 20, vars = "nope"), "Unknown")
 })
+
+test_that("plots use the Dark2 palette for groups", {
+  m <- small_model()
+  sto <- run_model(m, "stochastic", t_max = 60, n_sim = 5, seed = 1)
+  dark2 <- scales::brewer_pal(palette = "Dark2")(8)
+
+  scale_values <- function(p) {
+    unlist(lapply(p$scales$scales, function(x) x$palette(2)))
+  }
+  cols <- scale_values(plot(sto, "H", by = "region"))
+  expect_true(all(dark2[1:2] %in% cols))
+
+  # more groups than the palette has: interpolated, not recycled or NA
+  many <- dark2_colours(20)
+  expect_length(many, 20)
+  expect_equal(anyDuplicated(many), 0L)
+  expect_equal(dark2_colours(3), dark2[1:3])
+
+  cmp <- compare_scenarios(list(a = m, b = update_model(m, R0 = 1.2)),
+                           t_max = 50)
+  expect_true(all(dark2[1:2] %in% scale_values(plot(cmp, var = "H"))))
+})
+
+test_that("spaghetti lines are opaque enough to follow", {
+  m <- small_model()
+  sto <- run_model(m, "stochastic", t_max = 60, n_sim = 100, seed = 1)
+  line_alpha <- function(p) p$layers[[1]]$aes_params$alpha
+
+  expect_gte(line_alpha(plot(sto, "H", n_traces = 100)), 0.25)
+  # fewer lines, more opaque
+  expect_gt(line_alpha(plot(sto, "H", n_traces = 10)),
+            line_alpha(plot(sto, "H", n_traces = 100)))
+  # and never invisible, however many
+  expect_gte(trace_alpha(1000), 0.3)
+  expect_lte(trace_alpha(1), 0.85)
+  # explicit alpha wins
+  expect_equal(line_alpha(plot(sto, "H", alpha = 0.5)), 0.5)
+})

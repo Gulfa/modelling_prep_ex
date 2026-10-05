@@ -11,6 +11,7 @@
   style = c("ribbon", "spaghetti"),
   level = 0.95,
   n_traces = 20,
+  alpha = NULL,
   ...
 )
 }
@@ -27,6 +28,9 @@
 
 \item{n_traces}{Maximum number of trajectories per scenario for
 \code{style = "spaghetti"}.}
+
+\item{alpha}{Opacity of the individual trajectories (\code{NULL} chooses by how
+many there are).}
 
 \item{...}{Unused.}
 }

@@ -679,6 +679,9 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
     } else {
       p <- p + ggplot2::geom_pointrange(mapping)
     }
+    if (length(by) > 1) {
+      p <- p + dark2_scales(levels(d[[by[[2]]]]))
+    }
     return(p + ggplot2::labs(x = NULL, y = measure) +
              ggplot2::expand_limits(y = 0) + ggplot2::theme_bw())
   }
@@ -692,8 +695,9 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
                     chain = factor(rep(seq_len(dim(p)[3]), each = prod(dim(p)[1:2]))),
                     value = as.vector(p))
     return(ggplot2::ggplot(d, ggplot2::aes(step, value, colour = chain)) +
-             ggplot2::geom_line(alpha = 0.7) +
+             ggplot2::geom_line(alpha = 0.8) +
              ggplot2::facet_wrap(~parameter, scales = "free_y") +
+             dark2_scales(levels(d$chain)) +
              ggplot2::labs(x = "Step (after burn-in)", y = NULL) +
              ggplot2::theme_bw())
   }

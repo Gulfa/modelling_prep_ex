@@ -128,6 +128,10 @@ The chained binomials guarantee that competing outcomes never exceed the number 
 | 0.1 (default) | +0.7% |
 | 0.05 | +0.4% |
 
+## Plot styling
+
+Plots use ColorBrewer **Dark2** for groups (age, region, scenario, MCMC chain). With more than eight groups the palette is interpolated rather than recycled, so no two groups share a colour. Spaghetti lines fade as they get more numerous but never below 30% opacity; `alpha` overrides that on `plot()`. Maps keep viridis, which suits a continuous scale.
+
 ## Outputs
 
 All outputs are recorded daily and stratified by age, region and vaccination status. [`get_output()`](../R/output.R) sums over any strata you don't ask for.

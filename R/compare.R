@@ -120,13 +120,16 @@ summary.seirvax_comparison <- function(object, by = character(0),
 #' @param level Width of the interval.
 #' @param n_traces Maximum number of trajectories per scenario for
 #'   `style = "spaghetti"`.
+#' @param alpha Opacity of the individual trajectories (`NULL` chooses by how
+#'   many there are).
 #' @param ... Unused.
 #'
 #' @return A ggplot object.
 #' @export
 plot.seirvax_comparison <- function(x, var = "H", by = character(0),
                                     style = c("ribbon", "spaghetti"),
-                                    level = 0.95, n_traces = 20, ...) {
+                                    level = 0.95, n_traces = 20,
+                                    alpha = NULL, ...) {
   if (length(var) != 1) {
     stop("'var' must be a single variable")
   }
@@ -139,8 +142,9 @@ plot.seirvax_comparison <- function(x, var = "H", by = character(0),
     p <- ggplot2::ggplot(d) +
       ggplot2::geom_line(ggplot2::aes(time, value, colour = scenario,
                                       group = .data$.trace),
-                         data = d[sim <= n_traces], alpha = 0.3,
-                         linewidth = 0.3)
+                         data = d[sim <= n_traces],
+                         alpha = alpha %||% trace_alpha(n_traces),
+                         linewidth = 0.4)
   } else {
     a <- (1 - level) / 2
     q <- d[, .(median = stats::median(value),
@@ -155,6 +159,7 @@ plot.seirvax_comparison <- function(x, var = "H", by = character(0),
   if (length(by) > 0) {
     p <- p + ggplot2::facet_wrap(by, scales = "free_y")
   }
-  p + ggplot2::labs(x = "Day", y = var, colour = NULL, fill = NULL) +
+  p + dark2_scales(x$scenarios) +
+    ggplot2::labs(x = "Day", y = var, colour = NULL, fill = NULL) +
     ggplot2::theme_bw()
 }
