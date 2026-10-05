@@ -1,109 +1,190 @@
 ---
-title: "Example Influenza in Sweway"
+title: "Example: Influenza in Sweway"
 execute:
   warning: false
 format:
   html:
     code-fold: true
+    toc: true
 ---
 
 ## Introduction
-The public health institute of Sweway is investigating an outbreak of influenza in the country. This document provides an example for using the seirvax model to simulate the spread of the disease and evaluate potential intervention strategies. All information in this document is fake and intended for a pandemic preparedness exercise. The exercise will use the following geographilca data: 
+
+The public health institute of Sweway is investigating an outbreak of influenza
+in the country. This document is a worked example of using the `seirvax` package
+to simulate the spread of the disease and to evaluate potential intervention
+strategies. It follows the course an investigation might take: looking at the
+early case data, estimating how fast the outbreak is growing, building a
+transmission model, fitting it to what has been observed, and projecting
+forward under different measures.
+
+All information in this document is fake and intended for a pandemic
+preparedness exercise. Sweway is one of four fictional countries bundled with
+the package, each with five regions and population by five-year age band. The
+exercise uses the following geographical data:
 
 ```{r}
 #| label: fig-geographical-data
-#| fig-cap: "Geographical data for Sweway."
-#| warning: false
-devtools::load_all("/fhi/modelling_prep_ex") 
+#| fig-cap: "The regions of Sweway and its neighbours, shaded by population."
+devtools::load_all("/fhi/modelling_prep_ex")
 
-# Example code to load and display geographical data
 library(ggplot2)
 library(dplyr)
-# Replace with actual geographical data loading code
+library(data.table)
+
 plot_region_map()
 ```
 
-## Early outbreak 
-In the early outbreak we have a limited data on the spread in the form of a line list of ~650 individual cases. With the following data: 
+## Early outbreak
+
+Early in an outbreak the available data is thin. Here it is a line list of
+around 650 individual cases: everyone admitted to hospital or who died, plus a
+fraction of the milder infections that happened to be detected. Each row is one
+case, with the dates of symptom onset, hospital admission and death where they
+apply, along with the patient's age group and region.
 
 ```{r}
-
-ll <- simulate_line_list(t_max=30, n_seed=30, R0=1.4)
+#| label: line-list
+ll <- simulate_line_list(t_max = 30, n_seed = 30, R0 = 1.4)
 head(ll)
-
-ll %>% group_by(date_onset) %>% summarise(n = n()) %>% ggplot(aes(x = date_onset, y = n)) +
-  geom_col()
-
-
 ```
-Fit a poisson regression to hospitalisations to estimate growth rate and predict future admissions:
+
+Counting cases by onset date gives the epidemic curve so far:
+
 ```{r}
-hosp_inc <- as.data.frame(ll %>% filter(hospitalised==TRUE) %>% group_by(date_hospital) %>% summarise(I = n()))
-fit <- glm(I~ date_hospital, data = hosp_inc, family = poisson)
+#| label: fig-epi-curve
+#| fig-cap: "Detected cases by date of symptom onset."
+ll %>% group_by(date_onset) %>% summarise(n = n()) %>%
+  ggplot(aes(x = date_onset, y = n)) +
+  geom_col()
+```
+
+### Growth rate
+
+Before building a transmission model, a simple regression tells us how fast the
+outbreak is growing. Hospital admissions are the most reliable series in the
+line list, since every admission is detected, so we fit a Poisson regression of
+daily admissions against date. The coefficient on date is the exponential
+growth rate, and `log(2)` divided by it is the doubling time.
+
+```{r}
+#| label: fig-poisson
+#| fig-cap: "Daily hospital admissions with the fitted exponential growth and a 95% prediction interval extrapolated three weeks ahead."
+hosp_inc <- as.data.frame(ll %>% filter(hospitalised == TRUE) %>%
+                            group_by(date_hospital) %>% summarise(I = n()))
+
+fit <- glm(I ~ date_hospital, data = hosp_inc, family = poisson)
 summary(fit)
 
-ci <- confint(fit)[2,]
-print(glue::glue("Growth rate estimate: {round(coef(fit)[2], 3)} (95% CI: {round(ci[1], 3)} - {round(ci[2], 3)})"))
-print(glue::glue("Doubling time estimate: {round(log(2)/coef(fit)[2], 3)} days"))
+ci <- confint(fit)[2, ]
+print(glue::glue("Growth rate estimate: {round(coef(fit)[2], 3)} ",
+                 "(95% CI: {round(ci[1], 3)} - {round(ci[2], 3)})"))
+print(glue::glue("Doubling time estimate: {round(log(2) / coef(fit)[2], 3)} days"))
 
-preds <- ciTools::add_pi(data.frame(date_hospital = hosp_inc$date_hospital[1] + 1:(nrow(hosp_inc)+3*7), I=0), fit = fit, level = 0.95, names=c("lwr", "upr"))
-    
+preds <- ciTools::add_pi(
+  data.frame(date_hospital = hosp_inc$date_hospital[1] + 1:(nrow(hosp_inc) + 3 * 7),
+             I = 0),
+  fit = fit, level = 0.95, names = c("lwr", "upr"))
 
 ggplot(hosp_inc, aes(x = date_hospital, y = I)) +
   geom_col() +
-  geom_line(aes(y = predict(fit, type = "response")), color = "red") + 
+  geom_line(aes(y = predict(fit, type = "response")), color = "red") +
   geom_ribbon(data = preds, aes(ymin = lwr, ymax = upr), alpha = 0.2)
-
-
 ```
-Can look at distributions of age and region
+
+This extrapolation assumes the growth continues unchanged, which is only
+reasonable for a short horizon: it has no way to represent the depletion of
+susceptible people, nor the effect of any measures taken. That is what the
+transmission model below is for.
+
+### Who is affected
+
+The line list also shows which age groups and regions the cases are in. This
+matters both for targeting measures and, later, for checking whether the model's
+assumptions about severity and mixing are plausible.
+
 ```{r}
-ll %>% group_by(age_group) %>% summarise(n = n()) %>% ggplot(aes(x = age_group, y = n)) +
+#| label: fig-age-region
+#| fig-cap: "Detected cases by age group and by region."
+ll %>% group_by(age_group) %>% summarise(n = n()) %>%
+  ggplot(aes(x = age_group, y = n)) +
   geom_col()
 
-ll %>% group_by(region) %>% summarise(n = n()) %>% ggplot(aes(x = region, y = n)) +
+ll %>% group_by(region) %>% summarise(n = n()) %>%
+  ggplot(aes(x = region, y = n)) +
   geom_col()
 ```
 
+## Simulating an influenza outbreak with seirvax
 
-
-## Simulating an Influenza outbreak using the serivax package
-Start by running defining the population matrix for Sweway and a socical mixing matrix. For now we focus on the whole country
+A model needs to know how many people there are, how they are grouped, and how
+they mix. We start by defining the population matrix for Sweway and a social
+contact matrix. For now we treat the country as a single population, with four
+age groups.
 
 Population matrix:
-```{r}
-N <- population_matrix("Sweway", age_breaks = c(0, 20, 45, 65), by_region=FALSE)
-N
 
-```
-Mixing matrix:
 ```{r}
+#| label: population
+N <- population_matrix("Sweway", age_breaks = c(0, 20, 45, 65), by_region = FALSE)
+N
+```
+
+Mixing matrix: the number of contacts per day between age groups. There is no
+contact survey for Sweway, so we borrow the POLYMOD survey from the United
+Kingdom, aggregated to the same four age groups.
+
+
+```{r}
+#| label: mixing
 library(socialmixr)
 M <- contact_matrix(polymod, countries = "United Kingdom",
                     age.limits = c(0, 20, 45, 65), symmetric = TRUE)
 M$matrix
 ```
 
-First we build a model using the population and mixing matrices defined above.
+With the population and mixing matrices in hand we can build a model. Besides
+those, it needs the natural history of the disease (how long people are latent
+and infectious), how likely each age group is to be hospitalised, and how many
+infections to start with.
 
 ```{r}
+#| label: fig-first-run
+#| fig-cap: "Hospital occupancy over 30 days, 100 stochastic simulations."
 #| echo: true
-
-model <- build_model(N=N, R0=1.5,C_age=M$matrix, p_hosp=c(0.01, 0.02, 0.05, 0.1), 
-                    latent_period=1, infectious_period=2, I0=20)
+model <- build_model(N = N, R0 = 1.5, C_age = M$matrix,
+                     p_hosp = c(0.01, 0.02, 0.05, 0.1),
+                     latent_period = 1, infectious_period = 2, I0 = 20)
 
 res <- run_model(model, "stochastic", t_max = 30, n_sim = 100)
-plot(res, var="H")
-
+plot(res, var = "H")
 ```
-We can also fit the R0 in the model to the observed data, using the same model. Note here that we have assume values for I0 and p_hosp and they will obviously affect the fit.
+
+### Fitting R0 to the observed admissions
+
+Rather than guessing R0, we can estimate it from the observed admissions using
+the same model. Two methods are shown: `optim`, which gives a quick point
+estimate, and `pmcmc`, which runs a particle filter so that the estimate
+accounts for the randomness of the epidemic as well as the noise in the data.
+
+Note that we have assumed values for `I0` and `p_hosp`, and that these will
+obviously affect the fit: a model that assumes a lower probability of
+hospitalisation needs more infections, and so a higher R0, to produce the same
+number of admissions.
 
 ```{r}
+#| label: fitting
+data <- hosp_inc %>%
+  mutate(time = as.numeric(date_hospital - min(date_hospital)) + 1,
+         admissions = I) %>%
+  select(time, admissions)
 
-data <- hosp_inc %>% mutate(time=as.numeric(date_hospital - min(date_hospital))+1, admissions = I) %>% select(time, admissions)
-
-observed_age_dist <- ll[hospitalised==TRUE, .N, by = .(band = cut(age_mid, c(0, 20,45, 65, Inf), right = FALSE, labels=c("0-19", "20-44", "45-64", "65+")))]
-observed_region_dist <- ll[hospitalised==TRUE, .N, by = .(region)]
+observed_age_dist <- ll[hospitalised == TRUE,
+                        .N, by = .(band = cut(age_mid, c(0, 20, 45, 65, Inf),
+                                              right = FALSE,
+                                              labels = c("0-19", "20-44",
+                                                         "45-64", "65+")))]
+observed_region_dist <- ll[hospitalised == TRUE, .N, by = .(region)]
 
 fit1 <- fit_model(model, data, pars = "R0", method = "optim")
 fit1
@@ -112,25 +193,97 @@ fit3 <- fit_model(model, data, pars = "R0", method = "pmcmc",
                   n_steps = 300, n_chains = 1, n_particles = 100, dt = 0.25,
                   n_threads = 4, seed = 1)
 fit3
-plot(fit3)
-
-plot(fit3, type = "distribution", by = "age", measure = "cum_hosp") + geom_errorbar(aes(x = band, y = N, ymin=N, ymax=N), data = observed_age_dist, color="red")
-#plot(fit3, type = "distribution", by = "region", measure = "hosp_admissions") + geom_errorbar(aes(x = region, y = N, ymin=N, ymax=N), data = observed_region_dist, color="red")
 ```
-Poor match due to assumed values for hospitalisation probabiltities and age-based mixing matrix. One can now create a scenario by projecting with a lower beta or a mixing matrix that isolates those over 65. 
+
+The fitted model can be compared with the data it was fitted to, and with the
+age distribution of admissions, which the fit never saw:
+
 ```{r}
-
-proj <- project_fit(fit3, t_max = 200, n_draws = 50, vars = c("inc_hosp", "H"))
-
-plot(proj, var="inc_hosp")
-
-lockdown <- update_model(fit3$model,
-                         beta_schedule = data.frame(time = 60, mult = 0.7))
-proj2 <- project_fit(lockdown, t_max = 200, n_draws = 50, vars = c("inc_hosp", "H"), by = "age")
+#| label: fig-fit
+#| fig-cap: "The fitted model against the observed admissions."
+plot(fit3)
 ```
 
+```{r}
+#| label: fig-fit-age
+#| fig-cap: "Modelled hospital admissions by age group (points and intervals) against the observed numbers (red)."
+plot(fit3, type = "distribution", by = "age", measure = "cum_hosp") +
+  geom_errorbar(aes(x = band, y = N, ymin = N, ymax = N),
+                data = observed_age_dist, color = "red")
 
+# plot(fit3, type = "distribution", by = "region", measure = "cum_hosp") +
+#   geom_errorbar(aes(x = region, y = N, ymin = N, ymax = N),
+#                 data = observed_region_dist, color = "red")
+```
 
+The match is poor, because of the assumed values for the hospitalisation
+probabilities and the borrowed age-based mixing matrix. Fitting R0 pins down how
+fast the epidemic grows, but it cannot correct the age pattern: that comes
+entirely from `p_hosp` and the contact matrix. Improving it means revisiting
+those assumptions rather than the fit.
 
+## Scenarios
 
+With a fitted model we can project forward and ask what different measures would
+do. Projections start where the data ends and carry the fit's uncertainty: each
+posterior draw is run separately, and for a `pmcmc` fit each one continues from
+the state the particle filter reached, so the projection follows the epidemic
+that was actually observed.
 
+The baseline is the fitted model with nothing changed:
+
+```{r}
+#| label: fig-baseline
+#| fig-cap: "Projected daily hospital admissions under the baseline, one line per posterior draw."
+proj <- project_fit(fit3, t_max = 100, n_draws = 50)
+plot(proj, var = "inc_hosp")
+```
+
+The first scenario reduces contacts across the board by 30% from day 40, as a
+broad distancing measure would:
+
+```{r}
+#| label: fig-lockdown
+#| fig-cap: "Projection with contacts reduced by 30% from day 40."
+lockdown <- update_model(fit3$model,
+                         beta_schedule = data.frame(time = 40, mult = 0.7))
+
+proj2 <- project_fit(fit3, model = lockdown, t_max = 100, n_draws = 50)
+plot(proj2, var = "inc_hosp")
+
+comp <- compare_scenarios(list(baseline = proj, lockdown = proj2))
+plot(comp, var = "inc_hosp", style = "spaghetti")
+```
+
+The second scenario leaves the overall contact rate alone and changes who meets
+whom: contacts involving the over-65s are halved from day 40, as shielding of
+the most vulnerable group would. This is a change to the mixing matrix rather
+than a multiplier on transmission.
+
+```{r}
+#| label: fig-protect-elderly
+#| fig-cap: "Projection with contacts involving the over-65s halved from day 40, and all three scenarios together."
+protect_elderly_mm <- M$matrix
+protect_elderly_mm[, 4] <- protect_elderly_mm[, 4] * 0.5
+protect_elderly_mm[4, 1:3] <- protect_elderly_mm[4, 1:3] * 0.5
+
+model_protect_elderly <- update_model(
+  fit3$model,
+  mixing_schedule = list(list(time = 40, C_age = protect_elderly_mm)))
+
+proj3 <- project_fit(fit3, model = model_protect_elderly, t_max = 100,
+                     n_draws = 50)
+plot(proj3, var = "inc_hosp")
+
+comp2 <- compare_scenarios(list(baseline = proj, lockdown = proj2,
+                                protect_elderly = proj3))
+plot(comp2, var = "inc_hosp", style = "spaghetti")
+```
+
+Finally, the total number of hospital admissions under each scenario, with the
+uncertainty carried through from the fit:
+
+```{r}
+#| label: scenario-totals
+summary(comp2)[measure == "cum_hosp"]
+```

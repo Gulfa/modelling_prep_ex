@@ -306,4 +306,10 @@ test_that("pmcmc projections continue from the filtered state", {
 
   # the filtered state carries the epidemic so far: cumulative counts continue
   expect_gt(min(get_output(conditioned, "cum_hosp")$value), 0)
+
+  # the daily counters do not double-count the last data day: the first
+  # projected day is in line with the next, not a spike (it was ~1.6x before)
+  inc <- get_output(conditioned, "inc_hosp")[
+    , .(med = stats::median(value)), by = time][order(time)]
+  expect_lt(inc$med[2], 1.3 * inc$med[3])
 })

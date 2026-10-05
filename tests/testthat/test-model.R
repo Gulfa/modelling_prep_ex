@@ -108,3 +108,20 @@ test_that("stochastic runs are reproducible with a seed", {
   b <- get_output(run_model(m, "stochastic", t_max = 50, n_sim = 3, seed = 42), "I")
   expect_identical(a, b)
 })
+
+test_that("continuing from a state reproduces an uninterrupted run", {
+  m <- small_model()
+  full <- run_model(m, t_max = 120)
+  # the state halfway through, as a filter would hand it over
+  sys <- dust2::dust_system_create(seirvax:::seir_ode(), m$pars)
+  dust2::dust_system_set_state_initial(sys)
+  y <- dust2::dust_system_simulate(sys, 0:60)
+  state <- y[, ncol(y)]
+
+  cont <- run_model(m, t_max = 120, state = state, t_start = 60)
+  for (v in c("cum_hosp", "H", "inc_hosp", "inc_infections")) {
+    expect_equal(get_output(cont, v)$value,
+                 get_output(full, v)[time >= 60]$value,
+                 info = v)
+  }
+})

@@ -59,11 +59,19 @@ run_model <- function(model, type = c("deterministic", "stochastic"),
                                      n_particles = n_sim, dt = dt,
                                      seed = seed, n_threads = n_threads)
   }
+  inherited <- NULL
   if (is.null(state)) {
     dust2::dust_system_set_state_initial(sys)
   } else {
-    # continue from a state reached earlier (e.g. a particle filter's state at
-    # the end of the data), rather than from the model's initial conditions
+    # Continue from a state reached earlier (e.g. a particle filter's state at
+    # the end of the data). The daily incidence counters hold that day's
+    # partial count; left in place they would be added to the first simulated
+    # day, so zero them here and put them back afterwards as the first day's
+    # output.
+    index <- dust2::dust_unpack_state(sys, seq_along(state))
+    daily <- grep("^inc_", names(index), value = TRUE)
+    inherited <- lapply(index[daily], function(i) state[i])
+    state[unlist(index[daily])] <- 0
     dust2::dust_system_set_state(sys, state)
   }
   dust2::dust_system_set_time(sys, times[[1]])
@@ -76,6 +84,9 @@ run_model <- function(model, type = c("deterministic", "stochastic"),
              sim = seq_len(n_sim), time = times)
   d <- lengths(dn, use.names = FALSE)
   states <- lapply(raw, function(x) array(x, d, dn))
+  for (v in names(inherited)) {
+    states[[v]][, , , , 1] <- rep(inherited[[v]], times = n_sim)
+  }
   states$D <- states$D_hosp + states$D_comm
   states$inc_deaths <- states$inc_deaths_hosp + states$inc_deaths_comm
   if (!is.null(vars)) {
