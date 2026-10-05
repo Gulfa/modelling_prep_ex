@@ -102,7 +102,23 @@ The scripts in [`examples/`](examples/) are the best place to start:
 
 [`examples/influenza.qmd`](examples/influenza.qmd) puts all of it together as a
 worked exercise document: one outbreak followed from the first line list through
-growth rate, model, fit and scenarios, nationally and by region.
+growth rate, model, fit and scenarios, nationally and by region. The rendered
+[`examples/influenza.html`](examples/influenza.html) is committed alongside it —
+GitHub shows the source rather than the page, so use the "Download raw file"
+button and open it locally. It is one standalone file, so it can also be shared
+as an attachment.
+
+Rebuild it after changing the document or the package with:
+
+```sh
+quarto render examples/influenza.qmd
+```
+
+It takes about a minute and needs `quarto`, the installed package, and
+`socialmixr` and `ciTools` for the early-outbreak section. Render against the
+*installed* package rather than `devtools::load_all()`: the loaded version is
+compiled without optimisation and the two particle-MCMC fits take several times
+longer.
 
 ## Documentation
 

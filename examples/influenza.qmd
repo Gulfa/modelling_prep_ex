@@ -6,6 +6,7 @@ format:
   html:
     code-fold: true
     toc: true
+    embed-resources: true   # one standalone file, so it can be shared as is
 ---
 
 ## Introduction
@@ -43,7 +44,7 @@ geographical data:
 ```{r}
 #| label: fig-geographical-data
 #| fig-cap: "The regions of Sweway and its neighbours, shaded by population."
-library(serivax)
+library(seirvax)   # devtools::load_all() instead when working on the package
 
 library(ggplot2)
 library(dplyr)
