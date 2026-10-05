@@ -127,8 +127,8 @@ proj[, .(median = median(value), upper = quantile(value, 0.975)), by = time][
 # and each stratum's share of the national total.
 project_summary(fit, by = "age", t_max = 365, n_draws = 100, seed = 1)
 project_summary(fit, by = "region", t_max = 365, n_draws = 100,
-                measures = c("hosp_admissions", "deaths"), seed = 1)
-plot(fit, type = "distribution", by = "age", measure = "hosp_admissions",
+                measures = c("cum_hosp", "D"), seed = 1)
+plot(fit, type = "distribution", by = "age", measure = "cum_hosp",
      t_max = 365, n_draws = 100, seed = 1)
 
 # Note how narrow the age shares are when only R0 is fitted: the age pattern

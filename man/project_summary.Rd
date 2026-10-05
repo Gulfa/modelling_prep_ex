@@ -32,8 +32,9 @@ project_summary(
 \item{n_sim}{Stochastic simulations per draw.}
 
 \item{measures}{Which outcomes to report (default: all). One or more of
-\code{"infections"}, \code{"hosp_admissions"}, \code{"deaths"},
-\code{"peak_hosp_occupancy"} and \code{"peak_hosp_day"}.}
+\code{"cum_infections"}, \code{"cum_hosp"} (admissions), \code{"D"} (deaths),
+\code{"peak_hosp_occupancy"} and \code{"peak_hosp_day"}. They are named after the
+output variables of \code{\link[=get_output]{get_output()}}.}
 
 \item{level}{Width of the interval.}
 
@@ -66,6 +67,6 @@ not add up to the national peak.
 \dontrun{
 fit <- fit_model(model, data, pars = "R0", method = "mcmc")
 project_summary(fit, by = "age", t_max = 365)
-project_summary(fit, by = c("region", "age"), measures = "hosp_admissions")
+project_summary(fit, by = c("region", "age"), measures = "cum_hosp")
 }
 }

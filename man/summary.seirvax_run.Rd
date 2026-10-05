@@ -19,8 +19,9 @@
 A \code{data.table} with one row per outcome (and \code{by} group).
 }
 \description{
-Key outcomes per simulation: total infections, hospital admissions and
-deaths by the end of the run, and the peak hospital occupancy and its
-timing. For stochastic runs these are summarised over simulations by the
-mean, median and a central interval.
+Key outcomes per simulation, named after the output variables they come
+from: \code{cum_infections}, \code{cum_hosp} (admissions) and \code{D} (deaths) at the end
+of the run, plus \code{peak_hosp_occupancy} and \code{peak_hosp_day} from \code{H}. For
+stochastic runs these are summarised over simulations by the mean, median
+and a central interval.
 }

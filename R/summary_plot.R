@@ -1,9 +1,10 @@
 #' Summarise a model run
 #'
-#' Key outcomes per simulation: total infections, hospital admissions and
-#' deaths by the end of the run, and the peak hospital occupancy and its
-#' timing. For stochastic runs these are summarised over simulations by the
-#' mean, median and a central interval.
+#' Key outcomes per simulation, named after the output variables they come
+#' from: `cum_infections`, `cum_hosp` (admissions) and `D` (deaths) at the end
+#' of the run, plus `peak_hosp_occupancy` and `peak_hosp_day` from `H`. For
+#' stochastic runs these are summarised over simulations by the mean, median
+#' and a central interval.
 #'
 #' @param object Result of [run_model()].
 #' @param by Stratifications, as in [get_output()].
@@ -27,7 +28,9 @@ summary.seirvax_run <- function(object, by = character(0), level = 0.95, ...) {
   ret[]
 }
 
-outcome_measures <- c("infections", "hosp_admissions", "deaths",
+# Measures are named after the output variables they come from, so that
+# summary() and project_summary() speak the same language as get_output().
+outcome_measures <- c("cum_infections", "cum_hosp", "D",
                       "peak_hosp_occupancy", "peak_hosp_day")
 
 # Outcomes of each trajectory (identified by the `id` columns): totals at the
@@ -35,8 +38,7 @@ outcome_measures <- c("infections", "hosp_admissions", "deaths",
 trajectory_measures <- function(d, id, by) {
   final <- d[variable %in% c("cum_infections", "cum_hosp", "D") &
                time == max(time)]
-  final[, measure := c(cum_infections = "infections",
-                       cum_hosp = "hosp_admissions", D = "deaths")[variable]]
+  final[, measure := variable]
   peak <- d[variable == "H",
             .(peak_hosp_occupancy = max(value),
               peak_hosp_day = time[which.max(value)]), by = c(id, by)]

@@ -96,7 +96,7 @@ test_that("stochastic mean is close to the deterministic model", {
   det <- summary(run_model(m, t_max = 300))
   sto <- summary(run_model(m, "stochastic", t_max = 300, n_sim = 20,
                            dt = 0.05, seed = 1))
-  for (k in c("infections", "hosp_admissions")) {
+  for (k in c("cum_infections", "cum_hosp")) {
     expect_equal(sto[measure == k]$mean, det[measure == k]$value,
                  tolerance = 0.02)
   }

@@ -135,15 +135,15 @@ test_that("project_summary reports outcomes by age and region", {
 
   nat <- project_summary(fit, t_max = 200, n_draws = 10, seed = 1)
   expect_setequal(names(nat), c("measure", "mean", "median", "lower", "upper"))
-  expect_setequal(nat$measure, c("infections", "hosp_admissions", "deaths",
+  expect_setequal(nat$measure, c("cum_infections", "cum_hosp", "D",
                                  "peak_hosp_occupancy", "peak_hosp_day"))
   expect_true(all(nat$lower <= nat$median & nat$median <= nat$upper))
 
   by_age <- project_summary(fit, by = "age", t_max = 200, n_draws = 10,
-                            measures = c("infections", "hosp_admissions"),
+                            measures = c("cum_infections", "cum_hosp"),
                             seed = 1)
   expect_setequal(by_age$age, c("young", "old"))
-  expect_setequal(by_age$measure, c("infections", "hosp_admissions"))
+  expect_setequal(by_age$measure, c("cum_infections", "cum_hosp"))
   expect_true(all(c("share_median", "share_lower", "share_upper") %in% names(by_age)))
 
   # strata add up to the national total (means are additive)
@@ -155,7 +155,7 @@ test_that("project_summary reports outcomes by age and region", {
                tolerance = 1e-3)
 
   two <- project_summary(fit, by = c("age", "region"), t_max = 120,
-                         n_draws = 5, measures = "deaths", seed = 1)
+                         n_draws = 5, measures = "D", seed = 1)
   expect_equal(nrow(two), 4)
   expect_equal(sum(two$share_mean), 1, tolerance = 1e-6)
 })
@@ -179,7 +179,7 @@ test_that("distribution plots", {
   expect_s3_class(plot(fit, "distribution", by = "age", n_draws = 5, seed = 1),
                   "ggplot")
   expect_s3_class(plot(fit, "distribution", by = c("age", "region"),
-                       measure = "deaths", n_draws = 5, seed = 1), "ggplot")
+                       measure = "D", n_draws = 5, seed = 1), "ggplot")
   expect_error(plot(fit, "distribution", by = character(0)), "is needed")
 
   # observed counts can be overlaid without inherit.aes = FALSE, whatever
@@ -197,6 +197,6 @@ test_that("distribution plots", {
   expect_s3_class(ggplot2::ggplot_build(
     two + ggplot2::geom_point(ggplot2::aes(age, observed), data = obs)),
     "ggplot_built")
-  expect_error(plot(fit, "distribution", measure = c("deaths", "infections")),
+  expect_error(plot(fit, "distribution", measure = c("D", "cum_hosp")),
                "single outcome")
 })

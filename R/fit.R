@@ -436,8 +436,9 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
 #' @param by Stratifications to report, any of `"age"`, `"region"` and
 #'   `"vacc_status"`. The default, `character(0)`, gives national totals.
 #' @param measures Which outcomes to report (default: all). One or more of
-#'   `"infections"`, `"hosp_admissions"`, `"deaths"`,
-#'   `"peak_hosp_occupancy"` and `"peak_hosp_day"`.
+#'   `"cum_infections"`, `"cum_hosp"` (admissions), `"D"` (deaths),
+#'   `"peak_hosp_occupancy"` and `"peak_hosp_day"`. They are named after the
+#'   output variables of [get_output()].
 #' @param level Width of the interval.
 #'
 #' @return A `data.table` with the `by` columns, `measure`, `mean`, `median`,
@@ -448,7 +449,7 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
 #' \dontrun{
 #' fit <- fit_model(model, data, pars = "R0", method = "mcmc")
 #' project_summary(fit, by = "age", t_max = 365)
-#' project_summary(fit, by = c("region", "age"), measures = "hosp_admissions")
+#' project_summary(fit, by = c("region", "age"), measures = "cum_hosp")
 #' }
 project_summary <- function(fit, by = character(0), t_max = NULL,
                             n_draws = 100,
@@ -473,7 +474,7 @@ project_summary <- function(fit, by = character(0), t_max = NULL,
   ret <- summarise_measures(per_draw, by, level)
   # Shares only make sense for the totals: strata peak at different times, so
   # a "share of the peak" would not add up to anything meaningful.
-  share_of <- intersect(measures, c("infections", "hosp_admissions", "deaths"))
+  share_of <- intersect(measures, c("cum_infections", "cum_hosp", "D"))
   if (length(by) > 0 && length(share_of) > 0) {
     sh <- per_draw[measure %in% share_of]
     sh[, value := value / sum(value), by = c("draw", "sim", "measure")]
@@ -542,7 +543,7 @@ summary.seirvax_fit <- function(object, ...) {
 #' @export
 plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
                              t_max = NULL, n_draws = 100, by = "age",
-                             measure = "hosp_admissions", seed = NULL, ...) {
+                             measure = "cum_hosp", seed = NULL, ...) {
   type <- match.arg(type)
   if (type == "distribution") {
     if (length(measure) != 1) {

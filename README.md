@@ -46,7 +46,7 @@ m                                          # parameters, R0 and R_eff(0)
 det <- run_model(m, "deterministic", t_max = 300)
 sto <- run_model(m, "stochastic", t_max = 300, n_sim = 100, seed = 1)
 
-summary(sto, by = "age")                   # infections, admissions, deaths, peak occupancy
+summary(sto, by = "age")                   # cum_infections, cum_hosp, D, peak_hosp_*
 plot(sto, var = "H", by = "region")        # hospital occupancy by region
 get_output(det, vars = "inc_hosp", by = c("age", "vacc_status"))   # tidy data.table
 
@@ -70,7 +70,7 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `update_model()` | Copy of a model with some parameters changed |
 | `run_model()` | Run the `"deterministic"` or `"stochastic"` version |
 | `get_output()` | Results as a long `data.table`, summed to the strata you choose (`by`) |
-| `summary()` | Totals and peaks (with intervals for stochastic runs) |
+| `summary()` | Totals and peaks (with intervals for stochastic runs), named as in `get_output()` |
 | `plot()` | Plot one variable over time; stochastic runs as a spaghetti plot, or `style = "ribbon"` |
 | `R0()`, `R_eff()` | Reproduction numbers from the next-generation matrix |
 | `fit_model()` | Fit `R0` (and optionally `hosp_scale`, `nb_size`) to daily hospital admissions |

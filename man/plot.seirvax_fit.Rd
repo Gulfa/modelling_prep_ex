@@ -10,7 +10,7 @@
   t_max = NULL,
   n_draws = 100,
   by = "age",
-  measure = "hosp_admissions",
+  measure = "cum_hosp",
   seed = NULL,
   ...
 )
