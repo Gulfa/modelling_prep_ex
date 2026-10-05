@@ -38,8 +38,9 @@ details behind each step:
 | `07_line_list_exercise.R` | generating exercise data and fitting R0 back from it |
 
 `docs/model_description.md` has the equations and assumptions, and
-`docs/data.md` describes the bundled data. The exercise uses the following
-geographical data:
+`docs/data.md` describes the bundled data.
+
+ The exercise uses the following geographical data:
 
 ```{r}
 #| label: fig-geographical-data
@@ -55,22 +56,22 @@ plot_region_map()
 
 ## Early outbreak
 
-Early in an outbreak the available data is thin. Here it is a line list of
-around 650 individual cases: everyone admitted to hospital or who died, plus a
-fraction of the milder infections that happened to be detected. Each row is one
-case, with the dates of symptom onset, hospital admission and death where they
-apply, along with the patient's age group and region.
+Early in an outbreak the available data is thin. Here it is a line list of about
+1,250 individual cases: everyone admitted to hospital (around 200 of them) or
+who died, plus a tenth of the milder infections that happened to be detected.
+Each row is one case, with the dates of symptom onset, hospital admission and
+death where they apply, along with the patient's age group and region.
+
+The outbreak is generated with a fixed seed, so every figure and number in this
+document is reproducible; drop `seed` from the call below for a different one.
 
 ```{r}
 #| label: line-list
-ll <- simulate_line_list(t_max = 30, n_seed = 30, R0 = 1.4)
+ll <- simulate_line_list(t_max = 30, n_seed = 30, R0 = 1.4, seed = 1)
 head(ll)
 ```
 
-`simulate_line_list()` is what the organisers use to produce the data; its
-arguments — the disease's natural history, severity by age, vaccination
-coverage, how many infections are detected — are shown in
-`examples/07_line_list_exercise.R`.
+
 
 Counting cases by onset date gives the epidemic curve so far:
 
@@ -182,7 +183,7 @@ model <- build_model(N = N, R0 = 1.5, C_age = M$matrix,
                      p_hosp = c(0.01, 0.02, 0.05, 0.1),
                      latent_period = 1, infectious_period = 2, I0 = 20)
 
-res <- run_model(model, "stochastic", t_max = 30, n_sim = 100)
+res <- run_model(model, "stochastic", t_max = 30, n_sim = 100, seed = 1)
 plot(res, var = "H")
 ```
 
@@ -231,17 +232,17 @@ age distribution of admissions, which the fit never saw:
 ```{r}
 #| label: fig-fit
 #| fig-cap: "The fitted model against the observed admissions."
-plot(fit3)
+plot(fit3, seed = 1)
 ```
 
 ```{r}
 #| label: fig-fit-age
 #| fig-cap: "Modelled hospital admissions by age group (points and intervals) against the observed numbers (red)."
-plot(fit3, type = "distribution", by = "age", measure = "cum_hosp") +
+plot(fit3, type = "distribution", by = "age", measure = "cum_hosp", seed = 1) +
   geom_errorbar(aes(x = band, y = N, ymin = N, ymax = N),
                 data = observed_age_dist, color = "red")
 
-# plot(fit3, type = "distribution", by = "region", measure = "cum_hosp") +
+# plot(fit3, type = "distribution", by = "region", measure = "cum_hosp", seed = 1) +
 #   geom_errorbar(aes(x = region, y = N, ymin = N, ymax = N),
 #                 data = observed_region_dist, color = "red")
 ```
@@ -269,7 +270,7 @@ The baseline is the fitted model with nothing changed:
 ```{r}
 #| label: fig-baseline
 #| fig-cap: "Projected daily hospital admissions under the baseline, one line per posterior draw."
-proj <- project_fit(fit3, t_max = 100, n_draws = 50)
+proj <- project_fit(fit3, t_max = 100, n_draws = 50, seed = 1)
 plot(proj, var = "inc_hosp")
 ```
 
@@ -282,7 +283,8 @@ broad distancing measure would:
 lockdown <- update_model(fit3$model,
                          beta_schedule = data.frame(time = 40, mult = 0.7))
 
-proj2 <- project_fit(fit3, model = lockdown, t_max = 100, n_draws = 50)
+proj2 <- project_fit(fit3, model = lockdown, t_max = 100, n_draws = 50,
+                     seed = 1)
 plot(proj2, var = "inc_hosp")
 
 comp <- compare_scenarios(list(baseline = proj, lockdown = proj2))
@@ -306,7 +308,7 @@ model_protect_elderly <- update_model(
   mixing_schedule = list(list(time = 40, C_age = protect_elderly_mm)))
 
 proj3 <- project_fit(fit3, model = model_protect_elderly, t_max = 100,
-                     n_draws = 50)
+                     n_draws = 50, seed = 1)
 
 comp2 <- compare_scenarios(list(baseline = proj, lockdown = proj2,
                                 protect_elderly = proj3))
