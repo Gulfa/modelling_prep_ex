@@ -15,3 +15,10 @@ total_alive_and_dead <- function(res) {
   d <- get_output(res, c("S", "E", "I", "H", "R", "D"))
   d[, .(total = sum(value)), by = .(sim, time)]$total
 }
+
+# Noise-free admissions from the deterministic model, as fit_model() wants them
+det_admissions <- function(model, t_max, by = character(0)) {
+  d <- get_output(run_model(model, t_max = t_max), "inc_hosp", by = by)[time > 0]
+  d[, admissions := round(value)]
+  d[, c("time", by, "admissions"), with = FALSE]
+}

@@ -77,6 +77,7 @@ run_model(fit$model, t_max = 300)          # the fitted model, for scenarios
 | `fit_parameters()` | Parameters that can be fitted, with default priors |
 | `project_fit()` | Run the model over posterior draws, e.g. to project beyond the data |
 | `project_summary()` | Totals and peaks by age and region from a fit, with uncertainty |
+| `compare_scenarios()` | Several models, runs or projections side by side, with `summary()` and `plot()` |
 | `example_data()` | Made-up example population, contact matrices and parameters |
 | `read_demography()`, `region_info()` | The bundled country data, and one row per region |
 | `population_matrix()` | Age × region population matrix for `build_model(N = ...)` |
@@ -94,7 +95,7 @@ The scripts in [`examples/`](examples/) are the best place to start:
 1. [`01_single_population.R`](examples/01_single_population.R): one group, deterministic vs. stochastic.
 2. [`02_age_structured.R`](examples/02_age_structured.R): age mixing, susceptibility, severity and vaccine effectiveness by age.
 3. [`03_age_and_region.R`](examples/03_age_and_region.R): combined age and region mixing, regional seeding, global and targeted interventions.
-4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios.
+4. [`04_scenarios.R`](examples/04_scenarios.R): comparing several scenarios with `compare_scenarios()`.
 5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.

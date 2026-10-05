@@ -18,12 +18,20 @@ output_dims <- c("age", "region", "vacc_status")
 #'
 #' @return A `data.table` with columns `time`, `sim`, the `by` columns
 #'   (factors, in model order), `variable` and `value`. Deterministic runs
-#'   have `sim = 1`.
+#'   have `sim = 1`. For a comparison there is also a `scenario` column.
 #' @export
 get_output <- function(run, vars = NULL, by = character(0)) {
-  if (!inherits(run, "seirvax_run")) {
-    stop("'run' must be created with run_model()")
-  }
+  UseMethod("get_output")
+}
+
+#' @export
+get_output.default <- function(run, vars = NULL, by = character(0)) {
+  stop("'run' must come from run_model(), project_fit() or compare_scenarios()")
+}
+
+#' @rdname get_output
+#' @export
+get_output.seirvax_run <- function(run, vars = NULL, by = character(0)) {
   if (is.null(vars)) {
     vars <- names(run$states)
   }

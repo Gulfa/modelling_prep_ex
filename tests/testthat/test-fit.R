@@ -1,10 +1,3 @@
-# Noise-free admissions from the deterministic model
-det_admissions <- function(model, t_max, by = character(0)) {
-  d <- get_output(run_model(model, t_max = t_max), "inc_hosp", by = by)[time > 0]
-  d[, admissions := round(value)]
-  d[, c("time", by, "admissions"), with = FALSE]
-}
-
 test_that("prepare_fit_data builds series, obs_map and dust2 data", {
   m <- small_model()
   d <- data.frame(time = c(1, 1, 2, 3), region = c("A", "B", "A", "B"),

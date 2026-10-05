@@ -35,23 +35,27 @@ scenarios <- list(
   "distancing day 50" = update_model(baseline,
                           beta_schedule = data.frame(time = c(50, 110), mult = c(0.7, 1))))
 
-runs <- lapply(scenarios, run_model, type = "stochastic", t_max = 365,
-               n_sim = 100, seed = 1, n_threads = 4)
+# compare_scenarios() runs them all and keeps them together. Models are run
+# for you; runs from run_model() and projections from project_fit() can be
+# passed in directly instead.
+cmp <- compare_scenarios(scenarios, type = "stochastic", t_max = 365,
+                         n_sim = 100, seed = 1, n_threads = 4)
+cmp
 
 # Key outcomes with 95% intervals
-tab <- rbindlist(lapply(names(runs), function(s) summary(runs[[s]])[, scenario := s]))
-dcast(tab, scenario ~ measure, value.var = "median")
-tab[measure == "peak_hosp_occupancy"]
+summary(cmp)
+dcast(summary(cmp), scenario ~ measure, value.var = "median")
+summary(cmp)[measure == "peak_hosp_occupancy"]
+summary(cmp, by = "age")[measure == "cum_hosp"]
 
-# Hospital occupancy over time
-h <- rbindlist(lapply(names(runs), function(s) {
-  get_output(runs[[s]], "H")[, scenario := s]
-}))
-h <- h[, .(median = median(value),
-           lower = quantile(value, 0.025), upper = quantile(value, 0.975)),
-       by = .(scenario, time)]
-ggplot(h, aes(time, median, colour = scenario, fill = scenario)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
-  geom_line() +
-  geom_hline(yintercept = 400, linetype = 2) +   # e.g. hospital capacity
-  labs(x = "Day", y = "Hospital occupancy") + theme_bw()
+# Hospital occupancy over time: median and 95% interval per scenario
+plot(cmp, var = "H") +
+  geom_hline(yintercept = 400, linetype = 2)   # e.g. hospital capacity
+
+plot(cmp, var = "inc_hosp", by = "region")     # one panel per region
+plot(cmp, var = "H", style = "spaghetti")      # individual simulations
+
+# get_output() gives the same long format as for a single run, with a
+# scenario column, if you would rather do your own summaries
+get_output(cmp, "D", by = "age")[time == 365,
+  .(deaths = median(value)), by = .(scenario, age)]
