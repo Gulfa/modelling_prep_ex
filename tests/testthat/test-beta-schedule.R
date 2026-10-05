@@ -60,3 +60,26 @@ test_that("a global multiplier scales R_eff by exactly that factor", {
   m <- small_model(beta_schedule = data.frame(time = 10, mult = 0.6))
   expect_equal(R_eff(m, time = 10), 0.6 * R_eff(m, time = 0))
 })
+
+test_that("a schedule starting later leaves the earlier epidemic untouched", {
+  base <- small_model(I0 = matrix(c(10, 0, 0, 0), 2))
+  iso <- diag(2)
+  switch_day <- 40
+  b <- update_model(base, beta_schedule = data.frame(time = switch_day, mult = 0.5))
+  m <- update_model(base, mixing_schedule = list(list(time = switch_day,
+                                                      M_region = iso)))
+  # calibration is from time 0, so beta and R0 are unaffected
+  expect_equal(b$beta, base$beta)
+  expect_equal(m$beta, base$beta)
+  expect_equal(R0(b), R0(base))
+  expect_equal(R0(m), R0(base))
+
+  inc <- function(x) get_output(run_model(x, t_max = 100), "inc_hosp")$value
+  for (scenario in list(b, m)) {
+    a <- inc(base)
+    s <- inc(scenario)
+    before <- seq_len(switch_day + 1)          # time 0 .. switch_day
+    expect_equal(s[before], a[before])
+    expect_false(isTRUE(all.equal(s[-before], a[-before])))
+  }
+})
