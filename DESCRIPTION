@@ -27,3 +27,6 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Additional_repositories: https://mrc-ide.r-universe.dev
+Remotes:
+    mrc-ide/dust2,
+    mrc-ide/monty

@@ -11,17 +11,48 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 - **Synthetic exercise data**: a line list of cases with hospitalisation and death dates, generated from a real run of the model.
 - **Fitting to daily hospital admissions** (national, or by region or age): a quick point estimate, MCMC, or particle MCMC, using [monty](https://mrc-ide.github.io/monty/).
 
+## Start here: a worked example
+
+[**`examples/influenza.html`**](examples/influenza.html) follows one outbreak
+from beginning to end, and is the quickest way to see what the package does.
+An influenza outbreak in the fictional country of Sweway is investigated with
+nothing but a line list of a few hundred cases: estimate how fast it is
+growing, build a transmission model, fit R0 to the observed hospital
+admissions, check the age and regional patterns the fit never saw, and project
+forward under distancing, shielding the elderly and travel restrictions.
+
+GitHub shows the source of an HTML file rather than the page, so use the
+"Download raw file" button and open it locally — it is one standalone file with
+every figure inlined, so it also works as an email attachment. The source is
+[`examples/influenza.qmd`](examples/influenza.qmd); rebuild it with
+`quarto render examples/influenza.qmd` (about a minute, and it needs
+`socialmixr` and `ciTools` as well as this package).
+
 ## Installation
 
-The package needs `dust2` and `monty` from the mrc-ide r-universe, and a C++ compiler to build it.
-
 ```r
-install.packages(c("dust2", "monty", "data.table", "ggplot2", "remotes"),
-                 repos = c("https://mrc-ide.r-universe.dev", "https://cloud.r-project.org"))
-remotes::install_local("path/to/modelling_prep_ex")
+# install.packages("remotes")
+remotes::install_github("Gulfa/modelling_prep_ex")
 ```
 
-For working on the model itself, see [`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).
+The package is called `seirvax`; `modelling_prep_ex` is the repository. A C++
+compiler is needed, since the models are compiled on installation, and
+[dust2](https://mrc-ide.github.io/dust2/) and
+[monty](https://mrc-ide.github.io/monty/) are pulled in automatically.
+
+To install them from the mrc-ide r-universe instead of GitHub, point R at it
+first:
+
+```r
+options(repos = c(mrcide = "https://mrc-ide.r-universe.dev",
+                  CRAN = "https://cloud.r-project.org"))
+remotes::install_github("Gulfa/modelling_prep_ex")
+```
+
+Maps need `sf`, which is optional: everything else works without it.
+
+For working on the model itself, see
+[`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).
 
 ## Quick start
 
@@ -90,7 +121,7 @@ Parameters can be given as a single value, a vector by age group, a vector by re
 
 ## Examples
 
-The scripts in [`examples/`](examples/) are the best place to start:
+The scripts in [`examples/`](examples/) take the features one at a time:
 
 1. [`01_single_population.R`](examples/01_single_population.R): one group, deterministic vs. stochastic.
 2. [`02_age_structured.R`](examples/02_age_structured.R): age mixing, susceptibility, severity and vaccine effectiveness by age.
@@ -100,24 +131,10 @@ The scripts in [`examples/`](examples/) are the best place to start:
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
 
-[`examples/influenza.qmd`](examples/influenza.qmd) puts all of it together as a
-worked exercise document: one outbreak followed from the first line list through
-growth rate, model, fit and scenarios, nationally and by region. The rendered
-[`examples/influenza.html`](examples/influenza.html) is committed alongside it —
-GitHub shows the source rather than the page, so use the "Download raw file"
-button and open it locally. It is one standalone file, so it can also be shared
-as an attachment.
-
-Rebuild it after changing the document or the package with:
-
-```sh
-quarto render examples/influenza.qmd
-```
-
-It takes about a minute and needs `quarto`, the installed package, and
-`socialmixr` and `ciTools` for the early-outbreak section. Render against the
-*installed* package rather than `devtools::load_all()`: the loaded version is
-compiled without optimisation and the two particle-MCMC fits take several times
+The worked document above, [`examples/influenza.qmd`](examples/influenza.qmd),
+puts all of it together on one outbreak. Render it against the *installed*
+package rather than `devtools::load_all()`: the loaded version is compiled
+without optimisation, and the two particle-MCMC fits then take several times
 longer.
 
 ## Documentation
