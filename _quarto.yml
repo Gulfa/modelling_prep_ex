@@ -1,0 +1,26 @@
+# Website for GitHub Pages: a landing page and the worked example.
+# Render with `quarto render`, publish with `quarto publish gh-pages`.
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - examples/influenza.qmd
+
+website:
+  title: "seirvax"
+  description: "An SEIR model with hospitalisation, death and vaccination, for preparedness exercises"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: examples/influenza.qmd
+        text: "Influenza example"
+    right:
+      - icon: github
+        href: https://github.com/Gulfa/modelling_prep_ex
+
+format:
+  html:
+    theme: cosmo
+    toc: true

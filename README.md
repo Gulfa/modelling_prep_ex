@@ -13,20 +13,26 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 
 ## Start here: a worked example
 
-[**`examples/influenza.html`**](examples/influenza.html) follows one outbreak
-from beginning to end, and is the quickest way to see what the package does.
-An influenza outbreak in the fictional country of Sweway is investigated with
-nothing but a line list of a few hundred cases: estimate how fast it is
-growing, build a transmission model, fit R0 to the observed hospital
-admissions, check the age and regional patterns the fit never saw, and project
-forward under distancing, shielding the elderly and travel restrictions.
+[**Influenza in Sweway**](https://gulfa.github.io/modelling_prep_ex/examples/influenza.html)
+follows one outbreak from beginning to end, and is the quickest way to see what
+the package does: a line list of a few hundred cases, the growth rate estimated
+from hospital admissions, a transmission model fitted to those admissions,
+checks of the age and regional patterns the fit never saw, and projections under
+distancing, shielding the elderly and restricting travel between regions.
 
-GitHub shows the source of an HTML file rather than the page, so use the
-"Download raw file" button and open it locally — it is one standalone file with
-every figure inlined, so it also works as an email attachment. The source is
-[`examples/influenza.qmd`](examples/influenza.qmd); rebuild it with
-`quarto render examples/influenza.qmd` (about a minute, and it needs
-`socialmixr` and `ciTools` as well as this package).
+The source is [`examples/influenza.qmd`](examples/influenza.qmd). To rebuild the
+site and publish it:
+
+```sh
+quarto render                  # builds _site/ (about a minute)
+quarto publish gh-pages        # renders and publishes to GitHub Pages
+```
+
+`_site/examples/influenza.html` is a single self-contained file, so it can also
+be sent as an attachment. Render against the *installed* package rather than
+`devtools::load_all()`: the loaded version is compiled without optimisation, and
+the two particle-MCMC fits then take several times longer. The document also
+needs `socialmixr` and `ciTools`.
 
 ## Installation
 
@@ -132,10 +138,7 @@ The scripts in [`examples/`](examples/) take the features one at a time:
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
 
 The worked document above, [`examples/influenza.qmd`](examples/influenza.qmd),
-puts all of it together on one outbreak. Render it against the *installed*
-package rather than `devtools::load_all()`: the loaded version is compiled
-without optimisation, and the two particle-MCMC fits then take several times
-longer.
+puts all of it together on one outbreak.
 
 ## Documentation
 

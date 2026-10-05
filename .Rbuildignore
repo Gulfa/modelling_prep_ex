@@ -6,3 +6,8 @@
 ^\.gitignore$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^_quarto\.yml$
+^index\.qmd$
+^_site$
+^_freeze$
+^\.quarto$

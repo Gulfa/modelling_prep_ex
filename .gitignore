@@ -13,5 +13,8 @@ examples/output/
 *.html
 *_files/
 *.rmarkdown
-# ... except the worked example, which is shared as one standalone file
-!examples/influenza.html
+_site/
+_freeze/
+
+/.quarto/
+.quarto/
