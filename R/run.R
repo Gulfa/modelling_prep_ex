@@ -18,6 +18,10 @@
 #' @param vars Output variables to keep (default: all, see [get_output()]).
 #'   Keeping fewer saves memory for large stochastic runs; `summary()` needs
 #'   `cum_infections`, `cum_hosp`, `D` and `H`.
+#' @param state Optional state to start from, as returned by dust2 for this
+#'   model, instead of the model's initial conditions. Used by
+#'   [project_fit()] to continue from a particle filter's state.
+#' @param t_start First day to simulate, when continuing from `state`.
 #'
 #' @return An object of class `seirvax_run`. Use [get_output()] to extract
 #'   results as a table, and `summary()` / `plot()` to look at them.
@@ -28,13 +32,18 @@
 #' res_s <- run_model(m, "stochastic", t_max = 200, n_sim = 20, seed = 1)
 run_model <- function(model, type = c("deterministic", "stochastic"),
                       t_max = 365, n_sim = 100, dt = 0.1, seed = NULL,
-                      n_threads = 1, vars = NULL) {
+                      n_threads = 1, vars = NULL, state = NULL,
+                      t_start = 0) {
   if (!inherits(model, "seirvax_model")) {
     stop("'model' must be created with build_model()")
   }
   type <- match.arg(type)
   check_range(t_max, "t_max", min_open = TRUE)
-  times <- seq(0, ceiling(t_max))
+  check_range(t_start, "t_start")
+  if (t_start >= t_max) {
+    stop("'t_start' must be before 't_max'")
+  }
+  times <- seq(ceiling(t_start), ceiling(t_max))
 
   if (type == "deterministic") {
     n_sim <- 1L
@@ -50,7 +59,14 @@ run_model <- function(model, type = c("deterministic", "stochastic"),
                                      n_particles = n_sim, dt = dt,
                                      seed = seed, n_threads = n_threads)
   }
-  dust2::dust_system_set_state_initial(sys)
+  if (is.null(state)) {
+    dust2::dust_system_set_state_initial(sys)
+  } else {
+    # continue from a state reached earlier (e.g. a particle filter's state at
+    # the end of the data), rather than from the model's initial conditions
+    dust2::dust_system_set_state(sys, state)
+  }
+  dust2::dust_system_set_time(sys, times[[1]])
   y <- dust2::dust_system_simulate(sys, times)
   raw <- dust2::dust_unpack_state(sys, y)
 

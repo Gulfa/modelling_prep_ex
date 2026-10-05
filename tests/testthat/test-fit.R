@@ -88,21 +88,21 @@ test_that("project_fit attaches the draws it used and can be seeded", {
   fit <- suppressMessages(fit_model(truth, d, pars = c("R0", "nb_size"),
                                     method = "mcmc", n_steps = 400,
                                     n_chains = 2, seed = 1))
-  p1 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 42)
+  p1 <- project_fit(fit, from = 0, t_max = 60, n_draws = 10, seed = 42)
   draws <- attr(p1, "draws")
   expect_equal(dim(draws), c(10, 2))
   expect_equal(colnames(draws), c("R0", "nb_size"))
   expect_setequal(unique(p1$draw), 1:10)
 
   # the same seed gives the same draws and the same trajectories
-  p2 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 42)
+  p2 <- project_fit(fit, from = 0, t_max = 60, n_draws = 10, seed = 42)
   expect_equal(attr(p2, "draws"), draws)
   expect_equal(p2$value, p1$value)
-  p3 <- project_fit(fit, t_max = 60, n_draws = 10, seed = 7)
+  p3 <- project_fit(fit, from = 0, t_max = 60, n_draws = 10, seed = 7)
   expect_false(isTRUE(all.equal(attr(p3, "draws"), draws)))
 
   # each trajectory really comes from its own draw
-  one <- project_fit(fit, t_max = 60, n_draws = 1, seed = 3)
+  one <- project_fit(fit, from = 0, t_max = 60, n_draws = 1, seed = 3)
   m <- fit_rebuild(fit$base_model, attr(one, "draws")[1, ])
   direct <- get_output(run_model(m, t_max = 60), "inc_hosp")
   expect_equal(one$value, direct$value)
@@ -129,7 +129,8 @@ test_that("projections can use a scenario model", {
 
   # the drawn parameters are still applied to the scenario model
   one <- project_fit(fit, model = update_model(fit$base_model, p_hosp = 0.5),
-                     t_max = 50, n_draws = 1, vars = "cum_hosp", seed = 2)
+                     from = 0, t_max = 50, n_draws = 1, vars = "cum_hosp",
+                     seed = 2)
   direct <- get_output(
     run_model(update_model(fit$base_model, p_hosp = 0.5,
                            R0 = attr(one, "draws")[1, "R0"]), t_max = 50),
@@ -233,4 +234,52 @@ test_that("distribution plots", {
     "ggplot_built")
   expect_error(plot(fit, "distribution", measure = c("D", "cum_hosp")),
                "single outcome")
+})
+
+test_that("projections start after the fit by default", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 80)
+  fit <- fit_model(truth, d, pars = "R0")
+
+  p <- project_fit(fit, n_draws = 3, seed = 1)
+  expect_equal(min(p$time), max(d$time))          # starts where the data ends
+  expect_equal(max(p$time), max(d$time) + 90)     # 90 days by default
+
+  late <- project_fit(fit, t_max = 150, n_draws = 3, seed = 1)
+  expect_equal(range(late$time), c(max(d$time), 150))
+
+  # from = 0 gives the whole epidemic, and the overlap is the same trajectory
+  full <- project_fit(fit, from = 0, t_max = 150, n_draws = 3, seed = 1)
+  expect_equal(min(full$time), 0)
+  expect_equal(full[time >= max(d$time)]$value, late$value)
+
+  expect_error(project_fit(fit, t_max = 10), "must be after")
+  expect_error(project_fit(fit, from = -1), "'from' must be")
+})
+
+test_that("pmcmc projections continue from the filtered state", {
+  truth <- small_model(R0 = 1.8, I0 = matrix(c(20, 0, 0, 0), 2))
+  set.seed(2)
+  sim <- run_model(truth, "stochastic", t_max = 60, n_sim = 1, seed = 11)
+  d <- get_output(sim, "inc_hosp")[time > 0, .(time, admissions = value)]
+  fit <- suppressMessages(fit_model(truth, d, pars = "R0", method = "pmcmc",
+                                    n_steps = 60, n_chains = 1,
+                                    n_particles = 50, dt = 0.25, seed = 1))
+  conditioned <- project_fit(fit, t_max = 90, n_draws = 10, type = "stochastic",
+                             dt = 0.25, seed = 1)
+  expect_equal(min(conditioned$time), max(d$time))
+
+  # starting from the filter's state keeps the handover close to the data,
+  # unlike an unconditioned run from time 0
+  observed <- d[time == max(time)]$admissions
+  handover <- conditioned[time == max(d$time)]$value
+  free <- project_fit(fit, from = 0, t_max = 90, n_draws = 10,
+                      type = "stochastic", dt = 0.25, seed = 1)[time == max(d$time)]$value
+  expect_lt(stats::median(abs(handover - observed)),
+            stats::median(abs(free - observed)))
+
+  # the filtered state carries the epidemic so far: cumulative counts continue
+  expect_gt(min(project_fit(fit, vars = "cum_hosp", t_max = 90, n_draws = 5,
+                            type = "stochastic", dt = 0.25,
+                            seed = 1)$value), 0)
 })

@@ -8,6 +8,7 @@ project_summary(
   fit,
   by = character(0),
   model = NULL,
+  from = 0,
   t_max = NULL,
   n_draws = 100,
   type = c("deterministic", "stochastic"),
@@ -31,7 +32,12 @@ same groups as the fitted model. Note that a drawn \code{R0} is recalibrated
 for whatever mixing the scenario has, so changing the contact matrices
 keeps R0 rather than beta.}
 
-\item{t_max}{Last day to run to (default: last day of the data).}
+\item{from}{First day of the projection. The default, 0, counts the whole
+epidemic including the fitted period, which is usually what a total is
+meant to mean. For \code{"pmcmc"} fits, a later \code{from} conditions on the data
+(see \code{\link[=project_fit]{project_fit()}}), but then the totals only count from there.}
+
+\item{t_max}{Last day to run to (default: 90 days after \code{from}).}
 
 \item{n_draws}{Number of posterior draws (MCMC fits).}
 

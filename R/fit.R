@@ -131,7 +131,8 @@ fit_model <- function(model, data, pars = "R0",
   opt <- fit_optim(posterior_det$posterior, x0)
   ret <- list(method = method, pars = pars, data = obs$data_long,
               series = obs$series, base_model = model, nb_size = nb_size,
-              domain = domain, optim = opt, samples = NULL)
+              domain = domain, optim = opt, samples = NULL, obs = obs,
+              n_particles = n_particles, dt = dt)
 
   if (method == "optim") {
     est <- opt$par
@@ -167,8 +168,6 @@ fit_model <- function(model, data, pars = "R0",
       row.names = NULL)
     density <- matrix(samples$density, ncol = n_chains)
     ret$acceptance <- mean(apply(density, 2, function(d) mean(diff(d) != 0)))
-    ret$n_particles <- if (method == "pmcmc") n_particles else NULL
-    ret$dt <- if (method == "pmcmc") dt else NULL
   }
   names(est) <- pars
   ret$model <- fit_rebuild(model, est)
@@ -252,6 +251,15 @@ prepare_fit_data <- function(data, model) {
 
 fit_posterior <- function(model, obs, pars, prior, nb_size, type,
                           n_particles = NULL, dt = NULL, n_threads = 1) {
+  l <- fit_likelihood(model, obs, pars, nb_size, type, n_particles, dt,
+                      n_threads)
+  list(posterior = l$likelihood + fit_prior(pars, prior), packer = l$packer)
+}
+
+# The dust2 filter and the packer that maps a parameter vector onto the
+# model's parameters. Projections reuse these to run the filter again.
+fit_likelihood <- function(model, obs, pars, nb_size, type,
+                           n_particles = NULL, dt = NULL, n_threads = 1) {
   fixed <- model$pars
   fixed$n_obs <- nrow(obs$obs_map)
   fixed$obs_map <- obs$obs_map
@@ -274,8 +282,8 @@ fit_posterior <- function(model, obs, pars, prior, nb_size, type,
                                         n_particles = n_particles, dt = dt,
                                         n_threads = n_threads)
   }
-  likelihood <- dust2::dust_likelihood_monty(filter, packer)
-  list(posterior = likelihood + fit_prior(pars, prior), packer = packer)
+  list(filter = filter, packer = packer,
+       likelihood = dust2::dust_likelihood_monty(filter, packer))
 }
 
 fit_prior <- function(pars, prior) {
@@ -374,9 +382,15 @@ fit_draws <- function(fit, n_draws) {
 #'
 #' Runs the model for parameter draws from the fit (posterior samples for
 #' MCMC fits; draws from the normal approximation at the estimate for
-#' `method = "optim"`), e.g. to project beyond the data. Each
-#' draw restarts from time 0; for `"pmcmc"` fits the projections are
-#' therefore not conditioned on the particular trajectory the data followed.
+#' `method = "optim"`), to project beyond the data.
+#'
+#' The projection starts at `from`, which defaults to the last day of the
+#' data, so the result covers the period after the fit only. For
+#' `method = "pmcmc"` each draw starts from a state sampled from the particle
+#' filter at that day, so the projection continues the particular epidemic the
+#' data came from rather than an average one. The deterministic methods have
+#' no such state: they are simulated from time 0 and reported from `from`
+#' onwards, which is the same trajectory.
 #'
 #' @param fit Result of [fit_model()].
 #' @param model Model to project with, for scenarios: the fitted parameters
@@ -385,7 +399,9 @@ fit_draws <- function(fit, n_draws) {
 #'   same groups as the fitted model. Note that a drawn `R0` is recalibrated
 #'   for whatever mixing the scenario has, so changing the contact matrices
 #'   keeps R0 rather than beta.
-#' @param t_max Last day to run to (default: last day of the data).
+#' @param from First day of the projection (default: the last day of the
+#'   data). `from = 0` gives the whole epidemic, including the fitted period.
+#' @param t_max Last day to run to (default: 90 days after `from`).
 #' @param n_draws Number of posterior draws (MCMC fits).
 #' @param type `"deterministic"` or `"stochastic"`.
 #' @param n_sim Stochastic simulations per draw.
@@ -398,7 +414,8 @@ fit_draws <- function(fit, n_draws) {
 #'   The parameter values behind each `draw` are attached as
 #'   `attr(x, "draws")`.
 #' @export
-project_fit <- function(fit, model = NULL, t_max = NULL, n_draws = 100,
+project_fit <- function(fit, model = NULL, from = NULL, t_max = NULL,
+                        n_draws = 100,
                         type = c("deterministic", "stochastic"), n_sim = 1,
                         vars = "inc_hosp", by = character(0), seed = NULL,
                         ...) {
@@ -410,17 +427,32 @@ project_fit <- function(fit, model = NULL, t_max = NULL, n_draws = 100,
   if (!identical(model$dims, fit$base_model$dims)) {
     stop("'model' must have the same age groups and regions as the fit")
   }
+  from <- from %||% max(fit$data$time)
+  check_range(from, "from")
   if (is.null(t_max)) {
-    t_max <- max(fit$data$time)
+    t_max <- from + 90
+  }
+  if (t_max <= from) {
+    stop("'t_max' must be after 'from'")
   }
   if (!is.null(seed)) {
     set.seed(seed)
   }
   draws <- fit_draws(fit, n_draws)
+  # pmcmc: continue each draw from a state sampled from the particle filter,
+  # so the projection follows the epidemic that was actually observed
+  states <- if (fit$method == "pmcmc" && from > 0) {
+    filtered_states(fit, draws, from, ...)
+  }
   res <- lapply(seq_len(nrow(draws)), function(i) {
     m <- fit_rebuild(model, draws[i, ])
-    r <- run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars, ...)
-    get_output(r, vars, by)[, draw := i]
+    r <- if (is.null(states)) {
+      run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars, ...)
+    } else {
+      run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars,
+                state = states[[i]], t_start = from, ...)
+    }
+    get_output(r, vars, by)[time >= from][, draw := i]
   })
   res <- rbindlist(res)
   setcolorder(res, c("time", "draw"))
@@ -446,6 +478,10 @@ project_fit <- function(fit, model = NULL, t_max = NULL, n_draws = 100,
 #' not add up to the national peak.
 #'
 #' @inheritParams project_fit
+#' @param from First day of the projection. The default, 0, counts the whole
+#'   epidemic including the fitted period, which is usually what a total is
+#'   meant to mean. For `"pmcmc"` fits, a later `from` conditions on the data
+#'   (see [project_fit()]), but then the totals only count from there.
 #' @param by Stratifications to report, any of `"age"`, `"region"` and
 #'   `"vacc_status"`. The default, `character(0)`, gives national totals.
 #' @param measures Which outcomes to report (default: all). One or more of
@@ -465,7 +501,7 @@ project_fit <- function(fit, model = NULL, t_max = NULL, n_draws = 100,
 #' project_summary(fit, by = c("region", "age"), measures = "cum_hosp")
 #' }
 project_summary <- function(fit, by = character(0), model = NULL,
-                            t_max = NULL, n_draws = 100,
+                            from = 0, t_max = NULL, n_draws = 100,
                             type = c("deterministic", "stochastic"),
                             n_sim = 1, measures = NULL, level = 0.95,
                             seed = NULL, ...) {
@@ -479,9 +515,9 @@ project_summary <- function(fit, by = character(0), model = NULL,
                  paste(outcome_measures, collapse = ", ")))
   }
   vars <- c("cum_infections", "cum_hosp", "D", "H")
-  proj <- project_fit(fit, model = model, t_max = t_max, n_draws = n_draws,
-                      type = type, n_sim = n_sim, vars = vars, by = by,
-                      seed = seed, ...)
+  proj <- project_fit(fit, model = model, from = from, t_max = t_max,
+                      n_draws = n_draws, type = type, n_sim = n_sim,
+                      vars = vars, by = by, seed = seed, ...)
   per_draw <- trajectory_measures(proj, c("draw", "sim"), by)
   per_draw <- per_draw[measure %in% measures]
 
@@ -500,6 +536,24 @@ project_summary <- function(fit, by = character(0), model = NULL,
   setorderv(ret, c("measure", by))
   ret[, measure := as.character(measure)]
   ret[]
+}
+
+# One starting state per draw, sampled from the particle filter run over the
+# data up to `from`.
+filtered_states <- function(fit, draws, from, n_threads = 1, ...) {
+  obs <- fit$obs
+  keep <- obs$data_dust$time <= from
+  if (!any(keep)) {
+    return(NULL)
+  }
+  obs$data_dust <- obs$data_dust[keep, , drop = FALSE]
+  l <- fit_likelihood(fit$base_model, obs, fit$pars, fit$nb_size,
+                      type = "stochastic", n_particles = fit$n_particles,
+                      dt = fit$dt, n_threads = n_threads)
+  lapply(seq_len(nrow(draws)), function(i) {
+    dust2::dust_likelihood_run(l$filter, l$packer$unpack(draws[i, ]))
+    dust2::dust_likelihood_last_state(l$filter, select_random_particle = TRUE)
+  })
 }
 
 #' @export
@@ -602,8 +656,8 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
              ggplot2::theme_bw())
   }
 
-  proj <- project_fit(x, t_max = t_max, n_draws = n_draws,
-                      by = c("age", "region"), seed = seed)
+  proj <- project_fit(x, from = 0, t_max = t_max %||% max(x$data$time),
+                      n_draws = n_draws, by = c("age", "region"), seed = seed)
   draws <- attr(proj, "draws")   # the draws behind the trajectories
   nb_size <- if ("nb_size" %in% x$pars) NULL else x$nb_size
   series <- x$series

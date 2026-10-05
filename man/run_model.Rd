@@ -12,7 +12,9 @@ run_model(
   dt = 0.1,
   seed = NULL,
   n_threads = 1,
-  vars = NULL
+  vars = NULL,
+  state = NULL,
+  t_start = 0
 )
 }
 \arguments{
@@ -38,6 +40,12 @@ parallel.}
 \item{vars}{Output variables to keep (default: all, see \code{\link[=get_output]{get_output()}}).
 Keeping fewer saves memory for large stochastic runs; \code{summary()} needs
 \code{cum_infections}, \code{cum_hosp}, \code{D} and \code{H}.}
+
+\item{state}{Optional state to start from, as returned by dust2 for this
+model, instead of the model's initial conditions. Used by
+\code{\link[=project_fit]{project_fit()}} to continue from a particle filter's state.}
+
+\item{t_start}{First day to simulate, when continuing from \code{state}.}
 }
 \value{
 An object of class \code{seirvax_run}. Use \code{\link[=get_output]{get_output()}} to extract

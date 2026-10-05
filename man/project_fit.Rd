@@ -7,6 +7,7 @@
 project_fit(
   fit,
   model = NULL,
+  from = NULL,
   t_max = NULL,
   n_draws = 100,
   type = c("deterministic", "stochastic"),
@@ -27,7 +28,10 @@ same groups as the fitted model. Note that a drawn \code{R0} is recalibrated
 for whatever mixing the scenario has, so changing the contact matrices
 keeps R0 rather than beta.}
 
-\item{t_max}{Last day to run to (default: last day of the data).}
+\item{from}{First day of the projection (default: the last day of the
+data). \code{from = 0} gives the whole epidemic, including the fitted period.}
+
+\item{t_max}{Last day to run to (default: 90 days after \code{from}).}
 
 \item{n_draws}{Number of posterior draws (MCMC fits).}
 
@@ -50,7 +54,14 @@ The parameter values behind each \code{draw} are attached as
 \description{
 Runs the model for parameter draws from the fit (posterior samples for
 MCMC fits; draws from the normal approximation at the estimate for
-\code{method = "optim"}), e.g. to project beyond the data. Each
-draw restarts from time 0; for \code{"pmcmc"} fits the projections are
-therefore not conditioned on the particular trajectory the data followed.
+\code{method = "optim"}), to project beyond the data.
+}
+\details{
+The projection starts at \code{from}, which defaults to the last day of the
+data, so the result covers the period after the fit only. For
+\code{method = "pmcmc"} each draw starts from a state sampled from the particle
+filter at that day, so the projection continues the particular epidemic the
+data came from rather than an average one. The deterministic methods have
+no such state: they are simulated from time 0 and reported from \code{from}
+onwards, which is the same trajectory.
 }

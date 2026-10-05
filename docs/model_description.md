@@ -177,7 +177,9 @@ With default uniform priors, the `optim` estimate is the maximum likelihood esti
 `project_fit()` and `plot(fit)` propagate parameter uncertainty by Monte Carlo: draw parameters, rebuild the model for each draw, run it, and take quantiles across draws at each time point.
 
 - **Where the draws come from.** For `"mcmc"` and `"pmcmc"`, a random subsample (without replacement) of the pooled post-burn-in samples. For `"optim"`, draws from a multivariate normal at the estimate with the covariance implied by the curvature there, rejected until they fall inside the prior's range. Draws are whole parameter vectors, so correlations between parameters are kept.
-- **Each draw rebuilds the model**, so a drawn `R0` is recalibrated to its own β, and runs from time 0.
+- **Each draw rebuilds the model**, so a drawn `R0` is recalibrated to its own β.
+- **The projection starts where the data ends.** `project_fit()` reports from `from`, which defaults to the last day of the data, so a projection is about the future rather than a re-prediction of the fitted period. `from = 0` gives the whole epidemic; `plot(fit)` uses that to show data and model together.
+- **For `pmcmc` fits the start is the filtered state.** Each draw runs the particle filter over the data up to `from` and continues from a state sampled from it, so the projection carries on the epidemic that was actually observed — including where it happened to be above or below the model's average. Conditioning this way narrows the projection: in one check, cumulative admissions after 90 further days spanned 910–11,298 conditioned against 365–13,383 unconditioned. The deterministic methods have no such state and simply run from time 0.
 - `attr(x, "draws")` on the result holds the parameter values behind each `draw`, and `seed` makes the choice reproducible.
 
 What the band does **not** include:
@@ -203,4 +205,6 @@ project_summary(fit, model = update_model(fit$base_model,
 
 The alternative, `update_model(fit$model, ...)`, gives a single trajectory at the point estimate and throws the uncertainty away. One caveat: a drawn `R0` is recalibrated for whatever mixing the scenario has, so changing a contact matrix holds R0 fixed rather than β.
 
-Two more things to keep in mind. The bands are **pointwise**: the median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory. And for `pmcmc` fits, projections restart from time 0 rather than from the filtered state at the end of the data, so they are not conditioned on the particular epidemic the data came from.
+One more thing to keep in mind: the bands are **pointwise**. The median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory.
+
+Note that a scenario starting from a filtered state cannot change the past: `vacc_coverage`, `I0` and anything else that only sets initial conditions has no effect, because the state already encodes them. Only parameters governing the dynamics after `from` matter.

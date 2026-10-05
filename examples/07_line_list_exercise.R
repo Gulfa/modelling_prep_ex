@@ -119,6 +119,9 @@ fit2 <- fit_model(model, data, pars = c("R0", "hosp_scale"))
 fit2
 
 # ---- Participant: project and compare scenarios --------------------------------
+# project_fit() starts where the data ends, so this is the forecast proper.
+# For a pmcmc fit each draw continues from the particle filter's state, so it
+# carries on the epidemic that was observed rather than an average one.
 proj <- project_fit(fit, t_max = 150, n_draws = 100, vars = "H")
 proj[, .(median = median(value), upper = quantile(value, 0.975)), by = time][
   time %in% c(60, 90, 120, 150)]
