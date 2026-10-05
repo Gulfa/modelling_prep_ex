@@ -7,6 +7,7 @@
 project_summary(
   fit,
   by = character(0),
+  model = NULL,
   t_max = NULL,
   n_draws = 100,
   type = c("deterministic", "stochastic"),
@@ -22,6 +23,13 @@ project_summary(
 
 \item{by}{Stratifications to report, any of \code{"age"}, \code{"region"} and
 \code{"vacc_status"}. The default, \code{character(0)}, gives national totals.}
+
+\item{model}{Model to project with, for scenarios: the fitted parameters
+are applied to this model instead of the one that was fitted, e.g.
+\code{update_model(fit$base_model, beta_schedule = ...)}. It must have the
+same groups as the fitted model. Note that a drawn \code{R0} is recalibrated
+for whatever mixing the scenario has, so changing the contact matrices
+keeps R0 rather than beta.}
 
 \item{t_max}{Last day to run to (default: last day of the data).}
 

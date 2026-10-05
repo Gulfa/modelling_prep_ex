@@ -6,6 +6,7 @@
 \usage{
 project_fit(
   fit,
+  model = NULL,
   t_max = NULL,
   n_draws = 100,
   type = c("deterministic", "stochastic"),
@@ -18,6 +19,13 @@ project_fit(
 }
 \arguments{
 \item{fit}{Result of \code{\link[=fit_model]{fit_model()}}.}
+
+\item{model}{Model to project with, for scenarios: the fitted parameters
+are applied to this model instead of the one that was fitted, e.g.
+\code{update_model(fit$base_model, beta_schedule = ...)}. It must have the
+same groups as the fitted model. Note that a drawn \code{R0} is recalibrated
+for whatever mixing the scenario has, so changing the contact matrices
+keeps R0 rather than beta.}
 
 \item{t_max}{Last day to run to (default: last day of the data).}
 

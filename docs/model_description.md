@@ -193,4 +193,14 @@ What the band does **not** include:
 
 A caveat specific to breakdowns: if only `R0` is fitted, the *shape* of the age and region distribution is fixed by the contact matrix and the severity parameters, so its interval will be very narrow however uncertain the totals are. That narrowness reflects the assumptions, not evidence from the data.
 
+**Scenarios on top of a fit.** `project_fit()` and `project_summary()` take a `model` argument, so the fitted parameters can be applied to a modified model while keeping the posterior draws:
+
+```r
+project_summary(fit, model = update_model(fit$base_model,
+                  beta_schedule = data.frame(time = 100, mult = 0.6)),
+                t_max = 365, measures = "cum_hosp")
+```
+
+The alternative, `update_model(fit$model, ...)`, gives a single trajectory at the point estimate and throws the uncertainty away. One caveat: a drawn `R0` is recalibrated for whatever mixing the scenario has, so changing a contact matrix holds R0 fixed rather than β.
+
 Two more things to keep in mind. The bands are **pointwise**: the median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory. And for `pmcmc` fits, projections restart from time 0 rather than from the filtered state at the end of the data, so they are not conditioned on the particular epidemic the data came from.

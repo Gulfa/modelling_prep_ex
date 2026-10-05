@@ -114,6 +114,40 @@ test_that("project_fit attaches the draws it used and can be seeded", {
   expect_equal(a, b)
 })
 
+test_that("projections can use a scenario model", {
+  truth <- small_model(R0 = 1.7)
+  d <- det_admissions(truth, 100)
+  fit <- fit_model(truth, d, pars = "R0")
+
+  base <- project_fit(fit, t_max = 200, n_draws = 5, vars = "cum_hosp", seed = 1)
+  stopped <- project_fit(fit, model = update_model(fit$base_model,
+                           beta_schedule = data.frame(time = 50, mult = 0)),
+                         t_max = 200, n_draws = 5, vars = "cum_hosp", seed = 1)
+  # same draws, different model
+  expect_equal(attr(stopped, "draws"), attr(base, "draws"))
+  expect_lt(max(stopped$value), max(base$value))
+
+  # the drawn parameters are still applied to the scenario model
+  one <- project_fit(fit, model = update_model(fit$base_model, p_hosp = 0.5),
+                     t_max = 50, n_draws = 1, vars = "cum_hosp", seed = 2)
+  direct <- get_output(
+    run_model(update_model(fit$base_model, p_hosp = 0.5,
+                           R0 = attr(one, "draws")[1, "R0"]), t_max = 50),
+    "cum_hosp")
+  expect_equal(one$value, direct$value)
+
+  # project_summary takes it too
+  s <- project_summary(fit, model = update_model(fit$base_model,
+                         beta_schedule = data.frame(time = 50, mult = 0)),
+                       t_max = 200, n_draws = 5, measures = "cum_hosp", seed = 1)
+  expect_lt(s$median, project_summary(fit, t_max = 200, n_draws = 5,
+                                      measures = "cum_hosp", seed = 1)$median)
+
+  expect_error(project_fit(fit, model = "nope"), "build_model")
+  expect_error(project_fit(fit, model = build_model(N = 1e4, R0 = 2, I0 = 5)),
+               "same age groups and regions")
+})
+
 test_that("projections, plots and printing work", {
   truth <- small_model(R0 = 1.7)
   d <- det_admissions(truth, 60, by = "region")

@@ -379,6 +379,12 @@ fit_draws <- function(fit, n_draws) {
 #' therefore not conditioned on the particular trajectory the data followed.
 #'
 #' @param fit Result of [fit_model()].
+#' @param model Model to project with, for scenarios: the fitted parameters
+#'   are applied to this model instead of the one that was fitted, e.g.
+#'   `update_model(fit$base_model, beta_schedule = ...)`. It must have the
+#'   same groups as the fitted model. Note that a drawn `R0` is recalibrated
+#'   for whatever mixing the scenario has, so changing the contact matrices
+#'   keeps R0 rather than beta.
 #' @param t_max Last day to run to (default: last day of the data).
 #' @param n_draws Number of posterior draws (MCMC fits).
 #' @param type `"deterministic"` or `"stochastic"`.
@@ -392,11 +398,18 @@ fit_draws <- function(fit, n_draws) {
 #'   The parameter values behind each `draw` are attached as
 #'   `attr(x, "draws")`.
 #' @export
-project_fit <- function(fit, t_max = NULL, n_draws = 100,
+project_fit <- function(fit, model = NULL, t_max = NULL, n_draws = 100,
                         type = c("deterministic", "stochastic"), n_sim = 1,
                         vars = "inc_hosp", by = character(0), seed = NULL,
                         ...) {
   type <- match.arg(type)
+  model <- model %||% fit$base_model
+  if (!inherits(model, "seirvax_model")) {
+    stop("'model' must be created with build_model()")
+  }
+  if (!identical(model$dims, fit$base_model$dims)) {
+    stop("'model' must have the same age groups and regions as the fit")
+  }
   if (is.null(t_max)) {
     t_max <- max(fit$data$time)
   }
@@ -405,7 +418,7 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
   }
   draws <- fit_draws(fit, n_draws)
   res <- lapply(seq_len(nrow(draws)), function(i) {
-    m <- fit_rebuild(fit$base_model, draws[i, ])
+    m <- fit_rebuild(model, draws[i, ])
     r <- run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars, ...)
     get_output(r, vars, by)[, draw := i]
   })
@@ -451,8 +464,8 @@ project_fit <- function(fit, t_max = NULL, n_draws = 100,
 #' project_summary(fit, by = "age", t_max = 365)
 #' project_summary(fit, by = c("region", "age"), measures = "cum_hosp")
 #' }
-project_summary <- function(fit, by = character(0), t_max = NULL,
-                            n_draws = 100,
+project_summary <- function(fit, by = character(0), model = NULL,
+                            t_max = NULL, n_draws = 100,
                             type = c("deterministic", "stochastic"),
                             n_sim = 1, measures = NULL, level = 0.95,
                             seed = NULL, ...) {
@@ -466,8 +479,9 @@ project_summary <- function(fit, by = character(0), t_max = NULL,
                  paste(outcome_measures, collapse = ", ")))
   }
   vars <- c("cum_infections", "cum_hosp", "D", "H")
-  proj <- project_fit(fit, t_max = t_max, n_draws = n_draws, type = type,
-                      n_sim = n_sim, vars = vars, by = by, seed = seed, ...)
+  proj <- project_fit(fit, model = model, t_max = t_max, n_draws = n_draws,
+                      type = type, n_sim = n_sim, vars = vars, by = by,
+                      seed = seed, ...)
   per_draw <- trajectory_measures(proj, c("draw", "sim"), by)
   per_draw <- per_draw[measure %in% measures]
 

@@ -137,8 +137,12 @@ plot(fit, type = "distribution", by = "age", measure = "cum_hosp",
 # What actually happened, from the full data:
 admissions_from_line_list(ll, start_date = start)[time %in% c(60, 90, 120, 150)]
 
-# A scenario on top of the fitted model: 30% contact reduction from day 60
-lockdown <- update_model(fit$model,
+# A scenario on top of the fit: 30% contact reduction from day 60. Passing the
+# scenario model to project_fit()/project_summary() keeps the uncertainty from
+# the fit; update_model(fit$model, ...) would give a single trajectory at the
+# point estimate instead.
+lockdown <- update_model(fit$base_model,
                          beta_schedule = data.frame(time = 60, mult = 0.7))
-summary(run_model(lockdown, t_max = 200))
-summary(run_model(fit$model, t_max = 200))
+project_summary(fit, t_max = 200, n_draws = 100, measures = "cum_hosp", seed = 1)
+project_summary(fit, model = lockdown, t_max = 200, n_draws = 100,
+                measures = "cum_hosp", seed = 1)
