@@ -15,8 +15,17 @@
 #' @export
 summary.seirvax_run <- function(object, by = character(0), level = 0.95, ...) {
   by <- check_by(by)
-  d <- get_output(object, c("cum_infections", "cum_hosp", "D", "H"), by)
-  per_sim <- trajectory_measures(d, "sim", by)
+  # work with whatever the run kept: restricting `vars` drops some measures
+  # rather than making summary() impossible
+  have <- intersect(c("cum_infections", "cum_hosp", "D", "H"),
+                    names(object$states))
+  if (length(have) == 0) {
+    stop("summary() needs at least one of cum_infections, cum_hosp, D or H, ",
+         "but this run kept only: ",
+         paste(names(object$states), collapse = ", "),
+         ". Run again without 'vars', or keep those variables.")
+  }
+  per_sim <- trajectory_measures(get_output(object, have, by), "sim", by)
 
   if (object$type == "deterministic") {
     ret <- per_sim[, c(by, "measure", "value"), with = FALSE]
@@ -36,16 +45,23 @@ outcome_measures <- c("cum_infections", "cum_hosp", "D",
 # Outcomes of each trajectory (identified by the `id` columns): totals at the
 # end of the run, and the peak of hospital occupancy with its timing.
 trajectory_measures <- function(d, id, by) {
+  cols <- c(id, by, "measure", "value")
+  parts <- list()
   final <- d[variable %in% c("cum_infections", "cum_hosp", "D") &
                time == max(time)]
-  final[, measure := variable]
-  peak <- d[variable == "H",
-            .(peak_hosp_occupancy = max(value),
-              peak_hosp_day = time[which.max(value)]), by = c(id, by)]
-  peak <- melt(peak, id.vars = c(id, by), variable.name = "measure",
-               variable.factor = FALSE)
-  cols <- c(id, by, "measure", "value")
-  ret <- rbind(final[, cols, with = FALSE], peak[, cols, with = FALSE])
+  if (nrow(final) > 0) {
+    final[, measure := variable]
+    parts$final <- final[, cols, with = FALSE]
+  }
+  if (any(d$variable == "H")) {
+    peak <- d[variable == "H",
+              .(peak_hosp_occupancy = max(value),
+                peak_hosp_day = time[which.max(value)]), by = c(id, by)]
+    peak <- melt(peak, id.vars = c(id, by), variable.name = "measure",
+                 variable.factor = FALSE)
+    parts$peak <- peak[, cols, with = FALSE]
+  }
+  ret <- rbindlist(parts)
   ret[, measure := factor(measure, outcome_measures)]
   ret[]
 }
@@ -174,4 +190,11 @@ dark2_scales <- function(levels) {
 # but never so faint that a single line is hard to follow.
 trace_alpha <- function(n) {
   max(0.3, min(0.85, 25 / max(n, 1)))
+}
+
+# The output variables each measure is computed from
+measure_variables <- function(measures) {
+  v <- c(cum_infections = "cum_infections", cum_hosp = "cum_hosp", D = "D",
+         peak_hosp_occupancy = "H", peak_hosp_day = "H")
+  unname(v[measures])
 }

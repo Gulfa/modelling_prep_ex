@@ -53,6 +53,31 @@ test_that("run_model can keep a subset of variables", {
   expect_error(run_model(small_model(), t_max = 20, vars = "nope"), "Unknown")
 })
 
+test_that("summary reports what the kept variables support", {
+  m <- small_model()
+  full <- summary(run_model(m, t_max = 80))
+  expect_setequal(full$measure, c("cum_infections", "cum_hosp", "D",
+                                  "peak_hosp_occupancy", "peak_hosp_day"))
+
+  # a run that kept only some variables gives the measures it can
+  peaks <- summary(run_model(m, t_max = 80, vars = c("inc_hosp", "H")))
+  expect_setequal(peaks$measure, c("peak_hosp_occupancy", "peak_hosp_day"))
+  expect_equal(peaks$value, full[measure %in% peaks$measure]$value)
+
+  totals <- summary(run_model(m, t_max = 80, vars = c("cum_hosp", "D")))
+  expect_setequal(totals$measure, c("cum_hosp", "D"))
+
+  # and the same through a comparison
+  cmp <- compare_scenarios(list(a = m, b = update_model(m, R0 = 1.2)),
+                           t_max = 80, vars = c("inc_hosp", "H"))
+  expect_setequal(summary(cmp)$measure,
+                  c("peak_hosp_occupancy", "peak_hosp_day"))
+
+  # nothing usable is a clear error, not a cryptic one
+  expect_error(summary(run_model(m, t_max = 50, vars = "inc_hosp")),
+               "needs at least one of")
+})
+
 test_that("plots use the Dark2 palette for groups", {
   m <- small_model()
   sto <- run_model(m, "stochastic", t_max = 60, n_sim = 5, seed = 1)

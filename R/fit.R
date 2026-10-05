@@ -556,7 +556,7 @@ project_summary <- function(fit, by = character(0), model = NULL,
     stop(sprintf("'measures' must be a subset of: %s",
                  paste(outcome_measures, collapse = ", ")))
   }
-  vars <- c("cum_infections", "cum_hosp", "D", "H")
+  vars <- unique(measure_variables(measures))
   proj <- project_fit(fit, model = model, from = from, t_max = t_max,
                       n_draws = n_draws, type = type, n_sim = n_sim,
                       vars = vars, seed = seed, ...)

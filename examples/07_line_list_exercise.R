@@ -128,7 +128,7 @@ plot(proj, var = "H")       # one line per draw
 summary(proj)               # outcomes over the projection
 get_output(proj, "H", by = "age")[time == 150]
 # vars = c("H", "cum_hosp") keeps only those variables, which saves memory on
-# big models but leaves summary() without what it needs.
+# big models; summary() then reports the measures those variables support.
 
 # Who ends up in hospital? Totals by age and region with the fit's uncertainty,
 # and each stratum's share of the national total.
