@@ -33,7 +33,8 @@ plot(det, var = "H")           # hospital occupancy
 # ---- Stochastic run ---------------------------------------------------------
 sto <- run_model(m, type = "stochastic", t_max = 250, n_sim = 100, seed = 1)
 summary(sto)                          # mean, median and 95% interval
-plot(sto, var = "H", n_traces = 20)
+plot(sto, var = "H", n_traces = 20)        # one line per simulation
+plot(sto, var = "H", style = "ribbon")    # median and 95% interval instead
 
 # ---- Working with the output directly ----------------------------------------
 # get_output() returns a data.table in long format: time, sim, variable, value

@@ -16,6 +16,13 @@ ex <- example_data()
 ex$N           # age x region population
 ex$M_region    # rows sum to 1
 
+# build_model() combines the two into one contact matrix over age x region
+# groups, with age varying fastest. combine_mixing() does it on its own if you
+# want to see or check the result.
+C_full <- combine_mixing(ex$C_age, ex$M_region)
+dim(C_full)                                     # 4 ages x 3 regions = 12 groups
+round(C_full[1:4, 1:4], 2)                      # contacts within the first region
+
 # Seed 20 infections among 20-44 year olds in the North
 I0 <- matrix(0, 4, 3, dimnames = dimnames(ex$N))
 I0["20-44", "North"] <- 20

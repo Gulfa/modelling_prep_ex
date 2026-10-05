@@ -100,6 +100,10 @@ The scripts in [`examples/`](examples/) are the best place to start:
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
 
+[`examples/influenza.qmd`](examples/influenza.qmd) puts all of it together as a
+worked exercise document: one outbreak followed from the first line list through
+growth rate, model, fit and scenarios, nationally and by region.
+
 ## Documentation
 
 - [`docs/data.md`](docs/data.md): the bundled country data and how to turn it into model inputs.

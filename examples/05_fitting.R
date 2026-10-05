@@ -77,6 +77,11 @@ summary(run_model(fit2$model, t_max = 300))
 # with one simulation per posterior draw.
 proj <- project_fit(fit2, t_max = 200, n_draws = 50, seed = 1)
 proj
+
+# from = 0 re-runs the whole epidemic instead, including the fitted period,
+# which is how plot(fit) shows the model against the data
+whole <- project_fit(fit2, from = 0, t_max = 200, n_draws = 50, seed = 1)
+plot(whole, var = "inc_hosp")
 plot(proj, var = "H", by = "age")
 get_output(proj, "H", by = "age")[time == 120,
   .(median = median(value), upper = quantile(value, 0.975)), by = age]
