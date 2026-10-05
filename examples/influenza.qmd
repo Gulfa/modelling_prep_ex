@@ -273,7 +273,6 @@ model_protect_elderly <- update_model(
 
 proj3 <- project_fit(fit3, model = model_protect_elderly, t_max = 100,
                      n_draws = 50)
-plot(proj3, var = "inc_hosp")
 
 comp2 <- compare_scenarios(list(baseline = proj, lockdown = proj2,
                                 protect_elderly = proj3))
@@ -287,3 +286,197 @@ uncertainty carried through from the fit:
 #| label: scenario-totals
 summary(comp2)[measure == "cum_hosp"]
 ```
+
+## Adding regions
+
+So far the whole country has been treated as one well-mixed population. The line
+list, though, records which region each case is in, and the outbreak clearly did
+not start everywhere at once. A regional model lets us ask where hospital
+pressure will fall, and whether restricting travel between regions would help.
+
+The population matrix now keeps the regions instead of pooling them, giving one
+column per region:
+
+```{r}
+#| label: population-regions
+N_reg <- population_matrix("Sweway", age_breaks = c(0, 20, 45, 65))
+N_reg
+```
+
+We also need to say how much people mix between regions. There is no travel
+survey for Sweway, so we assume that most contacts happen at home and that the
+rest fall off with distance between the regional centres. Two numbers carry the
+assumption: the share of contacts made in a person's own region, and the
+distance scale over which the remainder spreads.
+
+```{r}
+#| label: region-mixing
+dist <- region_distances(country = "Sweway")
+round(dist)
+
+within <- 0.95        # share of contacts made in the home region
+scale_km <- 100       # distance scale for the rest
+
+w <- exp(-dist / scale_km)
+diag(w) <- 0
+M_region <- (1 - within) * w / rowSums(w)
+diag(M_region) <- within
+round(M_region, 3)
+```
+
+### Where the outbreak started
+
+In the national model it was enough to say how many infections to start with. With
+regions we have to say *where* they were, and that choice drives the whole
+regional picture. The line list tells us: the region with the earliest onsets,
+and the most cases in the first days, is where the outbreak took hold first.
+
+```{r}
+#| label: seeding
+first_cases <- ll[, .(first_onset = min(date_onset),
+                      early_cases = sum(date_onset < min(ll$date_onset) + 10),
+                      total = .N), by = region][order(first_onset, -early_cases)]
+first_cases
+
+seed_region <- as.character(first_cases$region[1])
+
+# all initial infections in working-age adults in that region, and nowhere else
+I0_reg <- matrix(0, nrow(N_reg), ncol(N_reg), dimnames = dimnames(N_reg))
+I0_reg["20-44", seed_region] <- 30
+I0_reg
+```
+
+### Fitting the regional model
+
+The model is built exactly as before, with the region mixing matrix and the
+explicit seeding added. We fit R0 to the same national admissions series, so the
+regional distribution is something the fit never sees and can be used to check
+the travel assumption.
+
+```{r}
+#| label: fit-regions
+model_reg <- build_model(N = N_reg, R0 = 1.5, C_age = M$matrix,
+                         M_region = M_region,
+                         p_hosp = c(0.01, 0.02, 0.05, 0.1),
+                         latent_period = 1, infectious_period = 2, I0 = I0_reg)
+
+fit_reg <- fit_model(model_reg, data, pars = "R0", method = "pmcmc",
+                     n_steps = 300, n_chains = 1, n_particles = 100, dt = 0.25,
+                     n_threads = 4, seed = 1)
+fit_reg
+```
+
+```{r}
+#| label: fig-region-dist
+#| fig-cap: "Modelled hospital admissions by region over the period covered by the data (points and intervals) against the observed numbers (red)."
+observed_region_dist <- ll[hospitalised == TRUE, .N, by = .(region)]
+
+plot(fit_reg, type = "distribution", by = "region", measure = "cum_hosp") +
+  geom_errorbar(aes(x = region, y = N, ymin = N, ymax = N),
+                data = observed_region_dist, color = "red")
+
+project_summary(fit_reg, by = "region", t_max = max(data$time),
+                measures = "cum_hosp", n_draws = 50, seed = 1)
+```
+
+The model concentrates admissions in the seeded region more than the data does,
+while the other regions lag behind. That is a statement about the travel
+assumption rather than about R0: with only 5% of contacts made outside the home
+region, the epidemic spreads between regions more slowly than it evidently did.
+Raising `within`'s complement, or shortening the distance scale, would spread it
+faster. The regional distribution is for the travel assumption what the age
+distribution was for the hospitalisation probabilities.
+
+### Scenario: restricting travel between regions
+
+The natural question for a regional model is whether cutting travel helps. We
+reduce cross-regional contacts five-fold from day 40 by swapping in a mixing
+matrix with a higher share of contacts at home, and for contrast impose the same
+restriction immediately, at the end of the data.
+
+```{r}
+#| label: fig-travel-restriction
+#| fig-cap: "Daily hospital admissions under the baseline and under reduced travel between all regions, imposed immediately or from day 40."
+restricted <- function(within) {
+  m <- (1 - within) * w / rowSums(w)
+  diag(m) <- within
+  m
+}
+
+day40 <- update_model(fit_reg$model,
+                      mixing_schedule = list(list(time = 40,
+                                                  M_region = restricted(0.99))))
+immediate <- update_model(fit_reg$model,
+                          mixing_schedule = list(list(time = max(data$time),
+                                                      M_region = restricted(0.99))))
+
+proj_reg <- project_fit(fit_reg, t_max = 100, n_draws = 50, seed = 1)
+proj_day40 <- project_fit(fit_reg, model = day40, t_max = 100, n_draws = 50,
+                          seed = 1)
+proj_now <- project_fit(fit_reg, model = immediate, t_max = 100, n_draws = 50,
+                        seed = 1)
+
+comp_reg <- compare_scenarios(list(baseline = proj_reg,
+                                   restrict_day_40 = proj_day40,
+                                   restrict_now = proj_now))
+plot(comp_reg, var = "inc_hosp")
+summary(comp_reg)[measure == "cum_hosp"]
+```
+
+Neither restriction makes much difference, and that is the point. By the end of
+the data every region already has its own established epidemic, so almost all
+transmission is within regions and there is little left for a travel restriction
+to prevent. Travel measures matter while an outbreak is still confined to where
+it started, and in this outbreak that window closed in the first three weeks,
+before our data even ended.
+
+### What if one region had been cut off early?
+
+To see what travel restrictions can do, they have to be in place before the
+region is seeded. That cannot be a projection: projections start from the state
+at the end of the data, which already has the epidemic everywhere. Instead we
+re-run the fitted model from day 0 under a different travel assumption, and
+compare it with the fitted baseline.
+
+We isolate the region furthest from where the outbreak started, cutting its
+contacts with every other region to a hundredth of normal. Rows of a mixing
+matrix have to sum to 1, so the matrix is renormalised afterwards.
+
+```{r}
+#| label: fig-isolate-region
+#| fig-cap: "Daily hospital admissions by region, with and without one region cut off from the start."
+isolate_region <- function(M, region, factor = 0.01) {
+  other <- setdiff(rownames(M), region)
+  M[region, other] <- M[region, other] * factor
+  M[other, region] <- M[other, region] * factor
+  M / rowSums(M)                       # rows must still sum to 1
+}
+
+far_region <- names(which.max(dist[seed_region, ]))
+far_region
+
+isolated <- update_model(
+  fit_reg$model,
+  mixing_schedule = list(list(time = 0,
+                              M_region = isolate_region(M_region, far_region))))
+
+comp_iso <- compare_scenarios(list(baseline = fit_reg$model, isolated = isolated),
+                              t_max = 250)
+plot(comp_iso, var = "inc_hosp", by = "region")
+```
+
+```{r}
+#| label: isolate-summary
+dcast(summary(comp_iso, by = "region")[measure %in% c("cum_hosp", "peak_hosp_day",
+                                                      "peak_hosp_occupancy")],
+      region + measure ~ scenario, value.var = "value")
+```
+
+The effect falls on that region alone: its epidemic is delayed by weeks and its
+peak is slightly lower, while the other regions are unchanged. What isolation
+does not do is reduce the total number of admissions there. Once even a handful
+of infections get through, a region with R0 above one has its own epidemic, and
+that epidemic reaches much the same final size whenever it starts. Cutting
+travel buys time — to prepare hospitals, or to vaccinate — rather than
+preventing cases, and it only buys time if it is in place before the virus
+arrives.
