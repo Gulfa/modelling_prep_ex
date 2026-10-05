@@ -73,9 +73,13 @@ rbind(cbind(method = "optim", summary(fit1)),
 summary(run_model(fit2$model, t_max = 300))
 
 # Projections over posterior draws, e.g. hospital occupancy by age group:
-proj <- project_fit(fit2, t_max = 200, n_draws = 50, vars = "H", by = "age")
-proj[, .(median = median(value), upper = quantile(value, 0.975)),
-     by = .(age, time)][time == 120]
+# project_fit() returns a run-like object covering the days after the data,
+# with one simulation per posterior draw.
+proj <- project_fit(fit2, t_max = 200, n_draws = 50, seed = 1)
+proj
+plot(proj, var = "H", by = "age")
+get_output(proj, "H", by = "age")[time == 120,
+  .(median = median(value), upper = quantile(value, 0.975)), by = age]
 
 # Scenarios can be built on the fitted model with update_model(), e.g. a
 # 30% contact reduction from day 70:

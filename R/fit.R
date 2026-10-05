@@ -405,20 +405,21 @@ fit_draws <- function(fit, n_draws) {
 #' @param n_draws Number of posterior draws (MCMC fits).
 #' @param type `"deterministic"` or `"stochastic"`.
 #' @param n_sim Stochastic simulations per draw.
-#' @param vars,by Output to keep, as in [get_output()].
+#' @param vars Output variables to keep, as in [get_output()].
 #' @param seed Random seed for choosing the draws (`NULL` = leave R's seed
 #'   alone, so repeated calls give slightly different bands).
 #' @param ... Passed to [run_model()] (e.g. `dt`, `n_threads`).
 #'
-#' @return A `data.table` as from [get_output()] with an extra `draw` column.
-#'   The parameter values behind each `draw` are attached as
-#'   `attr(x, "draws")`.
+#' @return An object of class `seirvax_projection`, which behaves like the
+#'   result of [run_model()]: each draw (and each simulation within it) is one
+#'   of its simulations, so [get_output()], `summary()` and `plot()` work on it
+#'   directly. `$draws` holds the parameter values behind each draw and
+#'   `$draw` maps simulations to draws.
 #' @export
 project_fit <- function(fit, model = NULL, from = NULL, t_max = NULL,
                         n_draws = 100,
                         type = c("deterministic", "stochastic"), n_sim = 1,
-                        vars = "inc_hosp", by = character(0), seed = NULL,
-                        ...) {
+                        vars = NULL, seed = NULL, ...) {
   type <- match.arg(type)
   model <- model %||% fit$base_model
   if (!inherits(model, "seirvax_model")) {
@@ -444,22 +445,63 @@ project_fit <- function(fit, model = NULL, from = NULL, t_max = NULL,
   states <- if (fit$method == "pmcmc" && from > 0) {
     filtered_states(fit, draws, from, ...)
   }
-  res <- lapply(seq_len(nrow(draws)), function(i) {
+  runs <- lapply(seq_len(nrow(draws)), function(i) {
     m <- fit_rebuild(model, draws[i, ])
-    r <- if (is.null(states)) {
-      run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars, ...)
+    if (is.null(states)) {
+      # no filtered state to continue from: run the whole epidemic and report
+      # the part after the fit
+      trim_run(run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars,
+                         ...), from)
     } else {
       run_model(m, type, t_max = t_max, n_sim = n_sim, vars = vars,
                 state = states[[i]], t_start = from, ...)
     }
-    get_output(r, vars, by)[time >= from][, draw := i]
   })
-  res <- rbindlist(res)
-  setcolorder(res, c("time", "draw"))
-  # keep the parameter values, so callers can pair a trajectory with the
-  # parameters that produced it (plot() needs nb_size per draw)
-  setattr(res, "draws", draws)
-  res[]
+  stack_runs(runs, model, draws, from)
+}
+
+# Keep only the days from `from` onwards
+trim_run <- function(run, from) {
+  keep <- run$time >= from
+  run$time <- run$time[keep]
+  run$states <- lapply(run$states, function(x) x[, , , , keep, drop = FALSE])
+  run
+}
+
+# The trajectories of every draw as one run-like object: each (draw,
+# simulation) pair becomes one of its simulations, so get_output(), summary()
+# and plot() work on a projection exactly as they do on a stochastic run.
+stack_runs <- function(runs, model, draws, from) {
+  first <- runs[[1]]
+  per_draw <- first$n_sim
+  total <- length(runs) * per_draw
+  dn <- dimnames(first$states[[1]])
+  dn$sim <- seq_len(total)
+  d <- lengths(dn, use.names = FALSE)
+  states <- lapply(names(first$states), function(v) {
+    out <- array(0, d, dn)
+    for (i in seq_along(runs)) {
+      out[, , , (i - 1) * per_draw + seq_len(per_draw), ] <- runs[[i]]$states[[v]]
+    }
+    out
+  })
+  names(states) <- names(first$states)
+  structure(list(model = model, type = "projection", time = first$time,
+                 n_sim = total, dt = first$dt, states = states,
+                 draws = draws, draw = rep(seq_along(runs), each = per_draw),
+                 from = from),
+            class = c("seirvax_projection", "seirvax_run"))
+}
+
+#' @export
+print.seirvax_projection <- function(x, ...) {
+  cat(sprintf("<seirvax_projection> day %d to %d, %d draw(s) x %d simulation(s)\n",
+              min(x$time), max(x$time), nrow(x$draws), x$n_sim / nrow(x$draws)))
+  cat(sprintf("  Fitted parameters: %s\n",
+              paste(colnames(x$draws), collapse = ", ")))
+  cat(sprintf("  Variables: %s\n", paste(names(x$states), collapse = ", ")))
+  cat("  Works like a model run: get_output(), summary(), plot()\n")
+  invisible(x)
 }
 
 #' Outcomes of a fitted model, by age and region
@@ -517,8 +559,8 @@ project_summary <- function(fit, by = character(0), model = NULL,
   vars <- c("cum_infections", "cum_hosp", "D", "H")
   proj <- project_fit(fit, model = model, from = from, t_max = t_max,
                       n_draws = n_draws, type = type, n_sim = n_sim,
-                      vars = vars, by = by, seed = seed, ...)
-  per_draw <- trajectory_measures(proj, c("draw", "sim"), by)
+                      vars = vars, seed = seed, ...)
+  per_draw <- trajectory_measures(get_output(proj, vars, by), "sim", by)
   per_draw <- per_draw[measure %in% measures]
 
   ret <- summarise_measures(per_draw, by, level)
@@ -527,7 +569,7 @@ project_summary <- function(fit, by = character(0), model = NULL,
   share_of <- intersect(measures, c("cum_infections", "cum_hosp", "D"))
   if (length(by) > 0 && length(share_of) > 0) {
     sh <- per_draw[measure %in% share_of]
-    sh[, value := value / sum(value), by = c("draw", "sim", "measure")]
+    sh[, value := value / sum(value), by = c("sim", "measure")]
     shares <- summarise_measures(sh, by, level)
     setnames(shares, c("mean", "median", "lower", "upper"),
              paste0("share_", c("mean", "median", "lower", "upper")))
@@ -656,9 +698,11 @@ plot.seirvax_fit <- function(x, type = c("fit", "trace", "distribution"),
              ggplot2::theme_bw())
   }
 
-  proj <- project_fit(x, from = 0, t_max = t_max %||% max(x$data$time),
-                      n_draws = n_draws, by = c("age", "region"), seed = seed)
-  draws <- attr(proj, "draws")   # the draws behind the trajectories
+  res <- project_fit(x, from = 0, t_max = t_max %||% max(x$data$time),
+                     n_draws = n_draws, vars = "inc_hosp", seed = seed)
+  proj <- get_output(res, "inc_hosp", by = c("age", "region"))
+  proj[, draw := res$draw[sim]]   # which draw each trajectory came from
+  draws <- res$draws
   nb_size <- if ("nb_size" %in% x$pars) NULL else x$nb_size
   series <- x$series
   mod <- rbindlist(lapply(seq_len(nrow(series)), function(k) {

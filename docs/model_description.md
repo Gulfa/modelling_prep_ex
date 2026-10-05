@@ -180,7 +180,7 @@ With default uniform priors, the `optim` estimate is the maximum likelihood esti
 - **Each draw rebuilds the model**, so a drawn `R0` is recalibrated to its own β.
 - **The projection starts where the data ends.** `project_fit()` reports from `from`, which defaults to the last day of the data, so a projection is about the future rather than a re-prediction of the fitted period. `from = 0` gives the whole epidemic; `plot(fit)` uses that to show data and model together.
 - **For `pmcmc` fits the start is the filtered state.** Each draw runs the particle filter over the data up to `from` and continues from a state sampled from it, so the projection carries on the epidemic that was actually observed — including where it happened to be above or below the model's average. Conditioning this way narrows the projection: in one check, cumulative admissions after 90 further days spanned 910–11,298 conditioned against 365–13,383 unconditioned. The deterministic methods have no such state and simply run from time 0.
-- `attr(x, "draws")` on the result holds the parameter values behind each `draw`, and `seed` makes the choice reproducible.
+- The result behaves like a model run: each draw is one of its simulations, so `get_output()`, `summary()` and `plot()` work on it directly, and `$draws` holds the parameter values behind each draw. `seed` makes the choice reproducible.
 
 What the band does **not** include:
 

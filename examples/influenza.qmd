@@ -1,0 +1,136 @@
+---
+title: "Example Influenza in Sweway"
+execute:
+  warning: false
+format:
+  html:
+    code-fold: true
+---
+
+## Introduction
+The public health institute of Sweway is investigating an outbreak of influenza in the country. This document provides an example for using the seirvax model to simulate the spread of the disease and evaluate potential intervention strategies. All information in this document is fake and intended for a pandemic preparedness exercise. The exercise will use the following geographilca data: 
+
+```{r}
+#| label: fig-geographical-data
+#| fig-cap: "Geographical data for Sweway."
+#| warning: false
+devtools::load_all("/fhi/modelling_prep_ex") 
+
+# Example code to load and display geographical data
+library(ggplot2)
+library(dplyr)
+# Replace with actual geographical data loading code
+plot_region_map()
+```
+
+## Early outbreak 
+In the early outbreak we have a limited data on the spread in the form of a line list of ~650 individual cases. With the following data: 
+
+```{r}
+
+ll <- simulate_line_list(t_max=30, n_seed=30, R0=1.4)
+head(ll)
+
+ll %>% group_by(date_onset) %>% summarise(n = n()) %>% ggplot(aes(x = date_onset, y = n)) +
+  geom_col()
+
+
+```
+Fit a poisson regression to hospitalisations to estimate growth rate and predict future admissions:
+```{r}
+hosp_inc <- as.data.frame(ll %>% filter(hospitalised==TRUE) %>% group_by(date_hospital) %>% summarise(I = n()))
+fit <- glm(I~ date_hospital, data = hosp_inc, family = poisson)
+summary(fit)
+
+ci <- confint(fit)[2,]
+print(glue::glue("Growth rate estimate: {round(coef(fit)[2], 3)} (95% CI: {round(ci[1], 3)} - {round(ci[2], 3)})"))
+print(glue::glue("Doubling time estimate: {round(log(2)/coef(fit)[2], 3)} days"))
+
+preds <- ciTools::add_pi(data.frame(date_hospital = hosp_inc$date_hospital[1] + 1:(nrow(hosp_inc)+3*7), I=0), fit = fit, level = 0.95, names=c("lwr", "upr"))
+    
+
+ggplot(hosp_inc, aes(x = date_hospital, y = I)) +
+  geom_col() +
+  geom_line(aes(y = predict(fit, type = "response")), color = "red") + 
+  geom_ribbon(data = preds, aes(ymin = lwr, ymax = upr), alpha = 0.2)
+
+
+```
+Can look at distributions of age and region
+```{r}
+ll %>% group_by(age_group) %>% summarise(n = n()) %>% ggplot(aes(x = age_group, y = n)) +
+  geom_col()
+
+ll %>% group_by(region) %>% summarise(n = n()) %>% ggplot(aes(x = region, y = n)) +
+  geom_col()
+```
+
+
+
+## Simulating an Influenza outbreak using the serivax package
+Start by running defining the population matrix for Sweway and a socical mixing matrix. For now we focus on the whole country
+
+Population matrix:
+```{r}
+N <- population_matrix("Sweway", age_breaks = c(0, 20, 45, 65), by_region=FALSE)
+N
+
+```
+Mixing matrix:
+```{r}
+library(socialmixr)
+M <- contact_matrix(polymod, countries = "United Kingdom",
+                    age.limits = c(0, 20, 45, 65), symmetric = TRUE)
+M$matrix
+```
+
+First we build a model using the population and mixing matrices defined above.
+
+```{r}
+#| echo: true
+
+model <- build_model(N=N, R0=1.5,C_age=M$matrix, p_hosp=c(0.01, 0.02, 0.05, 0.1), 
+                    latent_period=1, infectious_period=2, I0=20)
+
+res <- run_model(model, "stochastic", t_max = 30, n_sim = 100)
+plot(res, var="H")
+
+```
+We can also fit the R0 in the model to the observed data, using the same model. Note here that we have assume values for I0 and p_hosp and they will obviously affect the fit.
+
+```{r}
+
+data <- hosp_inc %>% mutate(time=as.numeric(date_hospital - min(date_hospital))+1, admissions = I) %>% select(time, admissions)
+
+observed_age_dist <- ll[hospitalised==TRUE, .N, by = .(band = cut(age_mid, c(0, 20,45, 65, Inf), right = FALSE, labels=c("0-19", "20-44", "45-64", "65+")))]
+observed_region_dist <- ll[hospitalised==TRUE, .N, by = .(region)]
+
+fit1 <- fit_model(model, data, pars = "R0", method = "optim")
+fit1
+
+fit3 <- fit_model(model, data, pars = "R0", method = "pmcmc",
+                  n_steps = 300, n_chains = 1, n_particles = 100, dt = 0.25,
+                  n_threads = 4, seed = 1)
+fit3
+plot(fit3)
+
+plot(fit3, type = "distribution", by = "age", measure = "cum_hosp") + geom_errorbar(aes(x = band, y = N, ymin=N, ymax=N), data = observed_age_dist, color="red")
+#plot(fit3, type = "distribution", by = "region", measure = "hosp_admissions") + geom_errorbar(aes(x = region, y = N, ymin=N, ymax=N), data = observed_region_dist, color="red")
+```
+Poor match due to assumed values for hospitalisation probabiltities and age-based mixing matrix. One can now create a scenario by projecting with a lower beta or a mixing matrix that isolates those over 65. 
+```{r}
+
+proj <- project_fit(fit3, t_max = 200, n_draws = 50, vars = c("inc_hosp", "H"))
+
+plot(proj, var="inc_hosp")
+
+lockdown <- update_model(fit3$model,
+                         beta_schedule = data.frame(time = 60, mult = 0.7))
+proj2 <- project_fit(lockdown, t_max = 200, n_draws = 50, vars = c("inc_hosp", "H"), by = "age")
+```
+
+
+
+
+
+

@@ -12,8 +12,7 @@ project_fit(
   n_draws = 100,
   type = c("deterministic", "stochastic"),
   n_sim = 1,
-  vars = "inc_hosp",
-  by = character(0),
+  vars = NULL,
   seed = NULL,
   ...
 )
@@ -39,7 +38,7 @@ data). \code{from = 0} gives the whole epidemic, including the fitted period.}
 
 \item{n_sim}{Stochastic simulations per draw.}
 
-\item{vars, by}{Output to keep, as in \code{\link[=get_output]{get_output()}}.}
+\item{vars}{Output variables to keep, as in \code{\link[=get_output]{get_output()}}.}
 
 \item{seed}{Random seed for choosing the draws (\code{NULL} = leave R's seed
 alone, so repeated calls give slightly different bands).}
@@ -47,9 +46,11 @@ alone, so repeated calls give slightly different bands).}
 \item{...}{Passed to \code{\link[=run_model]{run_model()}} (e.g. \code{dt}, \code{n_threads}).}
 }
 \value{
-A \code{data.table} as from \code{\link[=get_output]{get_output()}} with an extra \code{draw} column.
-The parameter values behind each \code{draw} are attached as
-\code{attr(x, "draws")}.
+An object of class \code{seirvax_projection}, which behaves like the
+result of \code{\link[=run_model]{run_model()}}: each draw (and each simulation within it) is one
+of its simulations, so \code{\link[=get_output]{get_output()}}, \code{summary()} and \code{plot()} work on it
+directly. \verb{$draws} holds the parameter values behind each draw and
+\verb{$draw} maps simulations to draws.
 }
 \description{
 Runs the model for parameter draws from the fit (posterior samples for
