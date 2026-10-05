@@ -12,3 +12,4 @@ examples/output/
 # rendered notebooks / quarto output
 *.html
 *_files/
+*.rmarkdown
