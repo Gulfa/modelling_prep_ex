@@ -172,6 +172,8 @@ With data from the early exponential phase only, the growth rate (and so R0) is 
 | `"mcmc"` | deterministic model | monty's adaptive random-walk sampler, started at the `optim` estimate and proposal | posterior samples |
 | `"pmcmc"` | stochastic model: particle filter with `n_particles` particles | monty random walk, proposal from the `optim` curvature | posterior samples, including the epidemic's own randomness |
 
+For what particle MCMC is doing — the filter, why the likelihood it returns is noisy, and how to choose the number of particles — see Endo, van Leeuwen and Baguelin, [*Introduction to particle Markov-chain Monte Carlo for disease dynamics modellers*](https://doi.org/10.1016/j.epidem.2019.100363), Epidemics 29 (2019), which works through the method with R code.
+
 With default uniform priors, the `optim` estimate is the maximum likelihood estimate within the prior range.
 
 **Time alignment.** Day 0 of the data is time 0 of the model, and `admissions` on day `t` are admissions during day $(t-1, t]$. If the epidemic started before the data, choose the model's seeding (`I0`) to match. Fitting the start date isn't supported yet.

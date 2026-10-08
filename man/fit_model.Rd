@@ -77,6 +77,7 @@ posterior distributions.
 \item \code{"pmcmc"}: particle MCMC on the stochastic model: each likelihood is
 estimated with a particle filter, so it also accounts for randomness in
 the epidemic itself. Much slower; the proposal is tuned from the
-deterministic fit.
+deterministic fit. For an introduction to the method, see Endo, van
+Leeuwen and Baguelin (2019), \doi{10.1016/j.epidem.2019.100363}.
 }
 }

@@ -73,7 +73,8 @@ fit_parameters <- function() {
 #' * `"pmcmc"`: particle MCMC on the stochastic model: each likelihood is
 #'   estimated with a particle filter, so it also accounts for randomness in
 #'   the epidemic itself. Much slower; the proposal is tuned from the
-#'   deterministic fit.
+#'   deterministic fit. For an introduction to the method, see Endo, van
+#'   Leeuwen and Baguelin (2019), \doi{10.1016/j.epidem.2019.100363}.
 #'
 #' @param model A model from [build_model()]. Its parameters are the fixed
 #'   values for everything that is not fitted, and its time 0 is day 0 of the

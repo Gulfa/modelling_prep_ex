@@ -58,6 +58,9 @@ plot(fit2, t_max = 150)
 # ---- 3. Particle MCMC on the stochastic model ---------------------------------
 # Accounts for randomness in the epidemic itself, but each step runs a
 # particle filter, so it is much slower: keep the chain short here.
+# For what particle MCMC does and why, see Endo, van Leeuwen and Baguelin,
+# "Introduction to particle Markov-chain Monte Carlo for disease dynamics
+# modellers", Epidemics 29 (2019), https://doi.org/10.1016/j.epidem.2019.100363
 fit3 <- fit_model(model, data, pars = "R0", method = "pmcmc",
                   n_steps = 300, n_chains = 1, n_particles = 100, dt = 0.25,
                   n_threads = 4, seed = 1)

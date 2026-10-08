@@ -139,6 +139,58 @@ ll %>% group_by(region) %>% summarise(n = n()) %>%
   geom_col()
 ```
 
+Counts on their own are misleading, because the age groups and the regions are
+of very different sizes: the biggest region here has more than ten times the
+population of the smallest. Dividing by the population turns them into
+incidence rates, which is what tells us who is actually at greatest risk and
+where the pressure per head is worst. We use hospitalisations rather than all
+detected cases, since every hospitalisation is in the line list while milder
+cases are only sampled.
+
+```{r}
+#| label: fig-rates
+#| fig-cap: "Hospitalisations per 100,000 people, by age group and by region."
+pop_age <- population_matrix("Sweway", age_breaks = c(0, 20, 45, 65),
+                             by_region = FALSE)[, 1]
+pop_region <- colSums(population_matrix("Sweway"))
+
+# the line list reports five-year bands; age_mid is the middle of each one, so
+# cases can be grouped into whatever bands we have populations for
+age_bands <- c("0-19", "20-44", "45-64", "65+")
+
+hosp_by_age <- ll %>% filter(hospitalised == TRUE) %>%
+  mutate(band = cut(age_mid, c(0, 20, 45, 65, Inf), right = FALSE,
+                    labels = age_bands)) %>%
+  group_by(band) %>% summarise(n = n()) %>%
+  mutate(population = pop_age[as.character(band)],
+         per_100k = 1e5 * n / population)
+hosp_by_age
+
+ggplot(hosp_by_age, aes(x = band, y = per_100k)) +
+  geom_col() +
+  labs(x = NULL, y = "Hospitalisations per 100,000")
+
+hosp_by_region <- ll %>% filter(hospitalised == TRUE) %>%
+  group_by(region) %>% summarise(n = n()) %>%
+  mutate(population = pop_region[as.character(region)],
+         per_100k = 1e5 * n / population)
+hosp_by_region
+
+ggplot(hosp_by_region, aes(x = region, y = per_100k)) +
+  geom_col() +
+  labs(x = NULL, y = "Hospitalisations per 100,000")
+```
+
+The age gradient is steep once expressed per head: the oldest group is
+hospitalised some twenty-five times as often as the youngest, which is the
+pattern the model's `p_hosp` has to reproduce.
+
+The regional picture changes more than that — it reverses. The region with the
+most cases is simply the one with the most people, while the highest rate per
+head is where the outbreak started, which is some way ahead of the rest. Counts
+tell you where the beds are needed now; rates tell you where the epidemic is in
+its course.
+
 ## Simulating an influenza outbreak with seirvax
 
 `examples/01_single_population.R` and `examples/02_age_structured.R` build up
@@ -197,6 +249,10 @@ Rather than guessing R0, we can estimate it from the observed admissions using
 the same model. Two methods are shown: `optim`, which gives a quick point
 estimate, and `pmcmc`, which runs a particle filter so that the estimate
 accounts for the randomness of the epidemic as well as the noise in the data.
+Particle MCMC is explained, with worked examples in R, in Endo, van Leeuwen and
+Baguelin,
+[*Introduction to particle Markov-chain Monte Carlo for disease dynamics modellers*](https://doi.org/10.1016/j.epidem.2019.100363),
+Epidemics 29 (2019).
 
 Note that we have assumed values for `I0` and `p_hosp`, and that these will
 obviously affect the fit: a model that assumes a lower probability of
