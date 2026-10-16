@@ -18,7 +18,8 @@ follows one outbreak from beginning to end, and is the quickest way to see what
 the package does: a line list of about 1,250 cases, the growth rate estimated
 from hospital admissions, a transmission model fitted to those admissions,
 checks of the age and regional patterns the fit never saw, and projections under
-distancing, shielding the elderly and restricting travel between regions.
+distancing, shielding the elderly and restricting travel between regions, and the
+effect of vaccinating the elderly before the outbreak.
 
 The source is [`examples/influenza.qmd`](examples/influenza.qmd). To rebuild the
 site and publish it:
@@ -128,6 +129,7 @@ The scripts in [`examples/`](examples/) take the features one at a time:
 5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
+8. [`08_vaccination.R`](examples/08_vaccination.R): what each kind of vaccine effectiveness does, the coverage needed to stop growth, and whether to give a fixed number of doses to the old or the young.
 
 The worked document above, [`examples/influenza.qmd`](examples/influenza.qmd),
 puts all of it together on one outbreak.

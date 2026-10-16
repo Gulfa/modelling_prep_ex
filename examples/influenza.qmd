@@ -37,6 +37,7 @@ details behind each step:
 | [`05_fitting.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/05_fitting.R) | the three fitting methods, priors, diagnostics and projections |
 | [`06_country_data.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/06_country_data.R) | the bundled country data, distances and maps |
 | [`07_line_list_exercise.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/07_line_list_exercise.R) | generating exercise data and fitting R0 back from it |
+| [`08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R) | what each vaccine effect does, coverage needed, and targeting doses |
 
 [`docs/model_description.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/model_description.md) has the equations and assumptions, and
 [`docs/data.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/data.md) describes the bundled data.
@@ -572,3 +573,68 @@ that epidemic reaches much the same final size whenever it starts. Cutting
 travel buys time — to prepare hospitals, or to vaccinate — rather than
 preventing cases, and it only buys time if it is in place before the virus
 arrives.
+
+## Vaccination
+
+[`examples/08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R)
+compares vaccine effects and ways of targeting doses in more detail.
+
+Suppose the over-65s had been offered a seasonal vaccine before the outbreak,
+and 80% had taken it. The vaccine is assumed to protect 40% against infection
+and to do nothing beyond that: a vaccinated person who does get infected is as
+likely to be admitted as anyone else their age.
+
+In the model, vaccination is coverage at the start of the epidemic, so it cannot
+be added to a projection: a projection continues from the state at the end of
+the data, in which nobody is vaccinated, and changing `vacc_coverage` there has
+no effect. Instead, as with the isolated region, we re-run the fitted national
+model from day 0, once as fitted and once with the vaccine. `from = 0` keeps the
+uncertainty in R0 from the fit.
+
+```{r}
+#| label: vaccination
+vaccinated <- update_model(fit3$model, vacc_coverage = c(0, 0, 0, 0.8),
+                           ve_infection = 0.4)
+c(baseline = R_eff(fit3$model), vaccinated = R_eff(vaccinated))
+
+proj_novacc <- project_fit(fit3, from = 0, t_max = 100, n_draws = 50, seed = 1)
+proj_vacc <- project_fit(fit3, model = vaccinated, from = 0, t_max = 100,
+                         n_draws = 50, seed = 1)
+comp_vacc <- compare_scenarios(list(baseline = proj_novacc,
+                                    vaccinated = proj_vacc))
+summary(comp_vacc)[measure %in% c("cum_infections", "cum_hosp")]
+summary(comp_vacc, by = "age")[measure == "cum_hosp"]
+```
+
+```{r}
+#| label: fig-vaccination
+#| fig-cap: "Daily hospital admissions by age group, with and without 80% of the over-65s vaccinated (VE 40% against infection) before the outbreak."
+plot(comp_vacc, var = "inc_hosp", by = "age")
+```
+
+Vaccinating the over-65s barely changes R_eff: they make few of the contacts
+that spread the virus, so the epidemic as a whole is hardly smaller. Admissions
+fall by about 15%, though, and most of the fall is among the over-65s
+themselves, whose admissions drop by about a third, because that is where
+admissions are concentrated. The younger age groups gain a little, indirectly,
+from the slightly smaller epidemic.
+
+The intervals of the two scenarios overlap, but mostly because both carry the
+same uncertainty about R0. The two projections use the same posterior draws
+(the same `seed`), so the difference can be taken draw by draw, which gives the
+uncertainty in the number of admissions averted:
+
+```{r}
+#| label: vaccination-averted
+total_hosp <- function(proj) {
+  get_output(proj, "cum_hosp")[time == max(time), value]   # one per draw
+}
+averted <- total_hosp(proj_novacc) - total_hosp(proj_vacc)
+round(quantile(averted, c(0.025, 0.5, 0.975)))
+```
+
+The vaccine averts roughly 6,500 to 7,200 admissions over the epidemic, a far
+narrower range than the totals themselves suggest: whatever R0 turns out to be,
+the vaccine's effect is much the same. A vaccine that also protected against
+severe disease in those it fails to protect from infection (`ve_hosp`) would
+avert more, without changing the epidemic any further.
