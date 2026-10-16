@@ -174,7 +174,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>An SEIR model with hospitalisation, death and vaccination, built for preparedness exercises. The source is on <a href="https://github.com/Gulfa/modelling_prep_ex">GitHub</a>.</p>
 <section id="the-worked-example" class="level2">
 <h2 class="anchored" data-anchor-id="the-worked-example">The worked example</h2>
-<p><a href="./examples/influenza.html"><strong>Influenza in Sweway</strong></a> follows one outbreak from beginning to end: a line list of about 1,250 cases, the growth rate estimated from hospital admissions, a transmission model fitted to those admissions, checks of the age and regional patterns the fit never saw, and projections under distancing, shielding the elderly and restricting travel between regions.</p>
+<p><a href="./examples/influenza.html"><strong>Influenza in Sweway</strong></a> follows one outbreak from beginning to end: a line list of about 1,250 cases, the growth rate estimated from hospital admissions, a transmission model fitted to those admissions, checks of the age and regional patterns the fit never saw, and projections under distancing, shielding the elderly and restricting travel between regions, and the effect of vaccinating the elderly before the outbreak.</p>
 <p>All of its data is fictional, and made for a pandemic preparedness exercise.</p>
 </section>
 <section id="installing-the-package" class="level2">
@@ -187,7 +187,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="what-it-does">What it does</h2>
 <ul>
 <li>Age groups and regions, with their contact matrices combined into one structure.</li>
-<li>A vaccinated stratum running in parallel with the unvaccinated one, with vaccine effectiveness against infection, transmission, hospitalisation and death that can vary by age.</li>
+<li>A vaccinated stratum running in parallel with the unvaccinated one, filled by an initial coverage and by vaccination campaigns over time, with vaccine effectiveness against infection, transmission, hospitalisation and death that can vary by age.</li>
 <li>Hospitalisations, hospital deaths and community deaths.</li>
 <li>Contact multipliers and mixing matrices that change over time, for interventions.</li>
 <li>A deterministic and a stochastic version of the same model, written in <a href="https://mrc-ide.github.io/odin2/">odin2</a> and run with <a href="https://mrc-ide.github.io/dust2/">dust2</a>.</li>
