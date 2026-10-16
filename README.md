@@ -46,15 +46,6 @@ compiler is needed, since the models are compiled on installation, and
 [dust2](https://mrc-ide.github.io/dust2/) and
 [monty](https://mrc-ide.github.io/monty/) are pulled in automatically.
 
-To install them from the mrc-ide r-universe instead of GitHub, point R at it
-first:
-
-```r
-options(repos = c(mrcide = "https://mrc-ide.r-universe.dev",
-                  CRAN = "https://cloud.r-project.org"))
-remotes::install_github("Gulfa/modelling_prep_ex")
-```
-
 Maps and `simulate_line_list()` need `sf`, which is optional: everything else
 works without it.
 
