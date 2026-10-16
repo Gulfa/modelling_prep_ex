@@ -27,7 +27,8 @@ build_model(
   I0 = 0,
   E0 = 0,
   beta_schedule = NULL,
-  mixing_schedule = NULL
+  mixing_schedule = NULL,
+  vacc_schedule = NULL
 )
 }
 \arguments{
@@ -88,6 +89,16 @@ list of entries like \code{list(time = 40, C_age = C_holiday)}, each replacing
 \code{C_age}, \code{M_region} or both from that time on (the one not given carries
 over). \code{C_age} and \code{M_region} themselves apply from time 0. \code{R0} is
 calibrated from the mixing at time 0.}
+
+\item{vacc_schedule}{Optional vaccination during the epidemic: a data.frame
+with columns \code{time} and \code{doses} (doses per day), and optionally \code{age}
+and/or \code{region} to target groups (\code{NA} = all). Rows work as in
+\code{beta_schedule}: from \code{time} onwards the matching groups receive \code{doses}
+per day between them, shared in proportion to their population, until a
+later row matching them overrides it (\code{doses = 0} ends a campaign). Doses
+go to unvaccinated people who are not ill (S and R, in proportion), so
+doses given to people who have already recovered protect nobody. When a
+group's unvaccinated S and R run out, its vaccination stops.}
 }
 \value{
 An object of class \code{seirvax_model}.
@@ -102,9 +113,11 @@ be given as a single value, a vector by age group, a vector by region
 (length \code{n_region}, or named with the region labels) or an
 \verb{n_age x n_region} matrix.
 
-Vaccination is a fixed initial coverage. Vaccinated people differ from
+Vaccination is an initial coverage (\code{vacc_coverage}), plus optionally doses
+given during the epidemic (\code{vacc_schedule}). Vaccinated people differ from
 unvaccinated people only through the vaccine effectiveness (VE) arguments,
-which can also vary by age and region:
+which can also vary by age and region, and protection starts as soon as a
+dose is given:
 \itemize{
 \item \code{ve_infection}: susceptibility is multiplied by \code{1 - ve_infection}.
 \item \code{ve_transmission}: infectiousness of vaccinated infected people is

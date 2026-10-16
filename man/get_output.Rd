@@ -33,8 +33,11 @@ Output variables (all per day, from time 0 to \code{t_max}):
 \itemize{
 \item Compartments (prevalence): \code{S}, \code{E}, \code{I}, \code{H} (hospital occupancy), \code{R},
 and cumulative deaths \code{D_hosp}, \code{D_comm}, \code{D} (= both).
-\item Cumulative counts: \code{cum_infections}, \code{cum_hosp} (hospital admissions).
+\item Cumulative counts: \code{cum_infections}, \code{cum_hosp} (hospital admissions),
+\code{cum_doses} (doses given by \code{vacc_schedule}, counted under
+\code{vacc_status = "vaccinated"}; initial coverage is not included).
 \item Daily incidence during day \verb{(t - 1, t]}: \code{inc_infections}, \code{inc_hosp}
-(admissions), \code{inc_deaths_hosp}, \code{inc_deaths_comm}, \code{inc_deaths}.
+(admissions), \code{inc_deaths_hosp}, \code{inc_deaths_comm}, \code{inc_deaths},
+\code{inc_doses}.
 }
 }

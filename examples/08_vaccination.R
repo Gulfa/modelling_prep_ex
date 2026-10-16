@@ -1,14 +1,16 @@
 ## Example 8: vaccination strategies
 ##
-## Vaccination in the model is a coverage at the start of the epidemic: a
-## fraction of each group begins in the vaccinated stratum and stays there.
-## There is no roll-out during a run, so this describes a vaccine given before
-## the epidemic (a seasonal campaign, say), not one that arrives mid-way.
+## People can be vaccinated before the epidemic (`vacc_coverage`: a fraction
+## of each group starts in the vaccinated stratum) or during it
+## (`vacc_schedule`: doses per day from given times, for chosen age groups or
+## regions). Either way, vaccinated people keep their status for the rest of
+## the run.
 ##
 ## This example looks at what each kind of vaccine effectiveness (VE) does,
-## how much coverage it takes to bring R_eff below one, and whether a fixed
+## how much coverage it takes to bring R_eff below one, whether a fixed
 ## number of doses is better spent protecting the old directly or slowing
-## transmission among the young.
+## transmission among the young, and how much it matters when a campaign
+## starts.
 ##
 ## Run line by line (e.g. Ctrl+Enter in RStudio), or with
 ##   source("examples/08_vaccination.R", echo = TRUE)
@@ -118,3 +120,28 @@ dcast(adm, scenario + age ~ vacc_status, value.var = "value",
       fun.aggregate = function(x) round(sum(x)))
 
 plot(cmp, var = "inc_hosp", by = "age")
+
+# ---- Vaccinating during the epidemic ------------------------------------------
+# vacc_schedule gives doses per day from given times. The same doses as above,
+# given to the over-65s over 30 days, with the campaign starting at different
+# times; "before" is the initial coverage used above, for comparison.
+campaign <- function(start) {
+  data.frame(time = c(start, start + 30), doses = c(doses / 30, 0), age = "65+")
+}
+starts <- c(0, 60, 120, 150, 180)
+timing <- c(list("no vaccine" = base, "before" = strategies[["65+"]]),
+            lapply(setNames(starts, paste("from day", starts)), function(t) {
+              do.call(update_model, c(list(base, vacc_schedule = campaign(t)), vaccine))
+            }))
+timing[["from day 120"]]              # print() shows the schedule
+# (R_eff is left out: it is computed at day 0, so it only sees vacc_coverage)
+outcomes(timing)[, !"R_eff"]
+# Without a vaccine, admissions peak around day 175. A campaign that is over
+# well before the peak does almost as well as vaccinating beforehand; one
+# that starts at the peak averts less than a quarter as many admissions,
+# because by then most of the epidemic among the over-65s has happened.
+
+cmp_timing <- compare_scenarios(timing, t_max = 365)
+plot(cmp_timing, var = "inc_hosp")
+plot(cmp_timing, var = "cum_doses")
+

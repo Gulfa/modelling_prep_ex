@@ -91,23 +91,47 @@ parse_population <- function(N) {
 #
 # Returns list(time = <n_t>, value = <n_group x n_t matrix>).
 build_beta_schedule <- function(schedule, dims) {
+  build_group_schedule(schedule, dims, "mult", "beta_schedule", default = 1,
+                       row_value = function(value, match) value)
+}
+
+# Build the per-group piecewise-constant vaccination rate (doses per day).
+#
+# Same rules as build_beta_schedule(), with a column `doses`: from `time`
+# onwards, the matching groups share `doses` per day in proportion to their
+# population. Before any row applies, no doses are given.
+build_vacc_schedule <- function(schedule, dims, N) {
+  N <- as.vector(N)
+  build_group_schedule(schedule, dims, "doses", "vacc_schedule", default = 0,
+                       row_value = function(value, match) {
+                         value * N[match] / sum(N[match])
+                       })
+}
+
+# The common part of the schedules: a data.frame with columns `time` and
+# `value_col`, and optionally `age` and/or `region` (NA or missing = all).
+# Rows are applied in time order; from `time` onwards the groups a row matches
+# take `row_value(value, match)` (one number per matched group), until a later
+# row matching them overrides it.
+build_group_schedule <- function(schedule, dims, value_col, name, default,
+                                 row_value) {
   n_age <- length(dims$age)
   n_region <- length(dims$region)
   n_group <- n_age * n_region
   if (is.null(schedule)) {
-    return(list(time = 0, value = matrix(1, n_group, 1)))
+    return(list(time = 0, value = matrix(default, n_group, 1)))
   }
   schedule <- as.data.frame(schedule, stringsAsFactors = FALSE)
-  if (!all(c("time", "mult") %in% names(schedule))) {
-    stop("'beta_schedule' must have columns 'time' and 'mult'")
+  if (!all(c("time", value_col) %in% names(schedule))) {
+    stop(sprintf("'%s' must have columns 'time' and '%s'", name, value_col))
   }
-  extra <- setdiff(names(schedule), c("time", "mult", "age", "region"))
+  extra <- setdiff(names(schedule), c("time", value_col, "age", "region"))
   if (length(extra) > 0) {
-    stop(sprintf("Unknown column(s) in 'beta_schedule': %s",
+    stop(sprintf("Unknown column(s) in '%s': %s", name,
                  paste(extra, collapse = ", ")))
   }
-  check_range(schedule$time, "beta_schedule$time")
-  check_range(schedule$mult, "beta_schedule$mult")
+  check_range(schedule$time, paste0(name, "$time"))
+  check_range(schedule[[value_col]], paste0(name, "$", value_col))
   for (v in c("age", "region")) {
     if (is.null(schedule[[v]])) {
       schedule[[v]] <- NA_character_
@@ -115,7 +139,7 @@ build_beta_schedule <- function(schedule, dims) {
     schedule[[v]] <- as.character(schedule[[v]])
     bad <- setdiff(stats::na.omit(schedule[[v]]), dims[[v]])
     if (length(bad) > 0) {
-      stop(sprintf("Unknown %s in 'beta_schedule': %s (known: %s)", v,
+      stop(sprintf("Unknown %s in '%s': %s (known: %s)", v, name,
                    paste(bad, collapse = ", "), paste(dims[[v]], collapse = ", ")))
     }
   }
@@ -125,13 +149,13 @@ build_beta_schedule <- function(schedule, dims) {
   schedule <- schedule[order(schedule$time), , drop = FALSE]
   times <- sort(unique(c(0, schedule$time)))
   value <- matrix(NA_real_, n_group, length(times))
-  current <- rep(1, n_group)
+  current <- rep(default, n_group)
   for (k in seq_along(times)) {
     rows <- schedule[schedule$time == times[k], , drop = FALSE]
     for (r in seq_len(nrow(rows))) {
       match <- (is.na(rows$age[r]) | group_age == rows$age[r]) &
         (is.na(rows$region[r]) | group_region == rows$region[r])
-      current[match] <- rows$mult[r]
+      current[match] <- row_value(rows[[value_col]][r], match)
     }
     value[, k] <- current
   }

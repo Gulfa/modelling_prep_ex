@@ -37,7 +37,7 @@ details behind each step:
 | [`05_fitting.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/05_fitting.R) | the three fitting methods, priors, diagnostics and projections |
 | [`06_country_data.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/06_country_data.R) | the bundled country data, distances and maps |
 | [`07_line_list_exercise.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/07_line_list_exercise.R) | generating exercise data and fitting R0 back from it |
-| [`08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R) | what each vaccine effect does, coverage needed, and targeting doses |
+| [`08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R) | what each vaccine effect does, coverage needed, targeting doses and timing campaigns |
 
 [`docs/model_description.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/model_description.md) has the equations and assumptions, and
 [`docs/data.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/data.md) describes the bundled data.
@@ -577,17 +577,23 @@ arrives.
 ## Vaccination
 
 [`examples/08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R)
-compares vaccine effects and ways of targeting doses in more detail.
+compares vaccine effects, ways of targeting doses and the timing of campaigns
+in more detail.
+
+The model can vaccinate in two ways: an initial coverage, `vacc_coverage`, for
+people vaccinated before the epidemic, and a schedule, `vacc_schedule`, giving
+doses per day from a chosen time. We look at each in turn.
+
+### Before the outbreak
 
 Suppose the over-65s had been offered a seasonal vaccine before the outbreak,
 and 80% had taken it. The vaccine is assumed to protect 40% against infection
 and to do nothing beyond that: a vaccinated person who does get infected is as
 likely to be admitted as anyone else their age.
 
-In the model, vaccination is coverage at the start of the epidemic, so it cannot
-be added to a projection: a projection continues from the state at the end of
-the data, in which nobody is vaccinated, and changing `vacc_coverage` there has
-no effect. Instead, as with the isolated region, we re-run the fitted national
+An initial coverage cannot be added to a projection: a projection continues
+from the state at the end of the data, in which nobody is vaccinated, and
+changing `vacc_coverage` there has no effect. Instead, as with the isolated region, we re-run the fitted national
 model from day 0, once as fitted and once with the vaccine. `from = 0` keeps the
 uncertainty in R0 from the fit.
 
@@ -638,3 +644,45 @@ narrower range than the totals themselves suggest: whatever R0 turns out to be,
 the vaccine's effect is much the same. A vaccine that also protected against
 severe disease in those it fails to protect from infection (`ve_hosp`) would
 avert more, without changing the epidemic any further.
+
+### Vaccinating now
+
+The decision actually open at the end of the data is whether to vaccinate now.
+That is a vaccination schedule starting on the last day of the data, which a
+projection can carry, because it changes what happens from then on. Suppose the
+same doses, enough for 80% of the over-65s, can be given over two weeks. Doses
+go to everyone over 65 who is not ill, including those who have already had
+influenza, for whom they are wasted.
+
+```{r}
+#| label: vaccinate-now
+doses_65 <- 0.8 * N["65+", 1]
+vaccinate_now <- update_model(
+  fit3$model, ve_infection = 0.4,
+  vacc_schedule = data.frame(time = max(data$time) + c(0, 14),
+                             doses = c(doses_65 / 14, 0), age = "65+"))
+vaccinate_now
+
+proj_now_vacc <- project_fit(fit3, model = vaccinate_now, t_max = 100,
+                             n_draws = 50, seed = 1)
+comp_now_vacc <- compare_scenarios(list(baseline = proj,
+                                        vaccinate_now = proj_now_vacc))
+averted_now <- total_hosp(proj) - total_hosp(proj_now_vacc)
+round(quantile(averted_now, c(0.025, 0.5, 0.975)))
+```
+
+```{r}
+#| label: fig-vaccinate-now
+#| fig-cap: "Projected daily hospital admissions by age group, with and without vaccinating the over-65s over two weeks from the end of the data."
+plot(comp_now_vacc, var = "inc_hosp", by = "age")
+```
+
+
+Vaccinating over the two weeks after the data ends averts nearly as many
+admissions as vaccinating before the outbreak. At the end of the data the
+outbreak has barely begun — about 200 of the tens of thousands of projected
+admissions have happened — so few of the over-65s have been infected yet, few
+doses are wasted on them, and the vaccine is in place before most of the
+epidemic arrives. That window does not stay open: in
+[`examples/08_vaccination.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/08_vaccination.R),
+the same campaign started at the peak averts less than a quarter as much.

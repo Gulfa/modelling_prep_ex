@@ -6,9 +6,12 @@ output_dims <- c("age", "region", "vacc_status")
 #'
 #' * Compartments (prevalence): `S`, `E`, `I`, `H` (hospital occupancy), `R`,
 #'   and cumulative deaths `D_hosp`, `D_comm`, `D` (= both).
-#' * Cumulative counts: `cum_infections`, `cum_hosp` (hospital admissions).
+#' * Cumulative counts: `cum_infections`, `cum_hosp` (hospital admissions),
+#'   `cum_doses` (doses given by `vacc_schedule`, counted under
+#'   `vacc_status = "vaccinated"`; initial coverage is not included).
 #' * Daily incidence during day `(t - 1, t]`: `inc_infections`, `inc_hosp`
-#'   (admissions), `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths`.
+#'   (admissions), `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths`,
+#'   `inc_doses`.
 #'
 #' @param run Result of [run_model()].
 #' @param vars Output variables to extract (default: all).

@@ -9,6 +9,7 @@
 ##             I -> H -> R
 ##             I -> D_comm   (community death, at the end of the infectious period)
 ##                  H -> D_hosp
+##   S, R (unvaccinated) -> S, R (vaccinated)   (vaccination over time)
 ##
 ## The parameter interface and the state declarations must stay identical to
 ## seir_stoch.R (see docs/modifying_the_model.md).
@@ -58,6 +59,17 @@ dim(beta_mult_value) <- c(n_group, n_beta_time)
 beta_mult <- interpolate(beta_time, beta_mult_value, "constant")
 dim(beta_mult) <- n_group
 
+# Vaccination over time: doses per day given to each group, piecewise constant
+# (built in R from vacc_schedule). Doses go to unvaccinated people who are not
+# ill -- S and R, in proportion -- and move them to the vaccinated stratum.
+n_vacc_time      <- parameter(type = "integer", constant = TRUE)
+vacc_time        <- parameter()
+vacc_doses_value <- parameter()
+dim(vacc_time)        <- n_vacc_time
+dim(vacc_doses_value) <- c(n_group, n_vacc_time)
+vacc_doses <- interpolate(vacc_time, vacc_doses_value, "constant")
+dim(vacc_doses) <- n_group
+
 ## ---- Force of infection ---------------------------------------------------
 N[] <- sum(S[i, ]) + sum(E[i, ]) + sum(I[i, ]) + sum(H[i, ]) + sum(R[i, ])
 dim(N) <- n_group
@@ -72,6 +84,18 @@ dim(contact_prev) <- c(n_group, n_group)
 lambda[] <- beta * sum(contact_prev[i, ])
 dim(lambda) <- n_group
 
+## ---- Vaccination ----------------------------------------------------------
+# Per-capita rate among the eligible that delivers vacc_doses per day. It is
+# capped at 10 per day, so that a group whose eligible people run out is
+# vaccinated to near-exhaustion within hours rather than going negative.
+vacc_eligible[] <- S[i, 1] + R[i, 1]
+vacc_rate[] <- min(vacc_doses[i] / max(vacc_eligible[i], 1e-10), 10)
+dim(vacc_eligible, vacc_rate) <- n_group
+# by stratum: only the unvaccinated are vaccinated
+vacc_rate_s[, 1] <- vacc_rate[i]
+vacc_rate_s[, 2] <- 0
+dim(vacc_rate_s) <- c(n_group, 2)
+
 ## ---- Flows ----------------------------------------------------------------
 n_SE[, ] <- lambda[i] * sus[i, j] * S[i, j]
 n_EI[, ] <- sigma * E[i, j]
@@ -80,7 +104,15 @@ n_IH[, ] <- n_I_out[i, j] * p_hosp[i, j]
 n_ID[, ] <- (n_I_out[i, j] - n_IH[i, j]) * p_death_comm[i, j]
 n_H_out[, ] <- H[i, j] / dur_hosp[i, j]
 n_HD[, ] <- n_H_out[i, j] * p_death_hosp[i, j]
+n_SV[, ] <- vacc_rate_s[i, j] * S[i, j]
+n_RV[, ] <- vacc_rate_s[i, j] * R[i, j]
+# arriving in the vaccinated stratum
+n_SV_in[, 1] <- 0
+n_SV_in[, 2] <- n_SV[i, 1]
+n_RV_in[, 1] <- 0
+n_RV_in[, 2] <- n_RV[i, 1]
 dim(n_SE, n_EI, n_I_out, n_IH, n_ID, n_H_out, n_HD) <- c(n_group, 2)
+dim(n_SV, n_RV, n_SV_in, n_RV_in) <- c(n_group, 2)
 
 ## ---- States ---------------------------------------------------------------
 initial(S[, ]) <- S_ini[i, j]
@@ -97,14 +129,19 @@ initial(inc_infections[, ], zero_every = 1) <- 0
 initial(inc_hosp[, ], zero_every = 1) <- 0
 initial(inc_deaths_hosp[, ], zero_every = 1) <- 0
 initial(inc_deaths_comm[, ], zero_every = 1) <- 0
+# Doses given, recorded in the vaccinated column (the unvaccinated one stays 0)
+initial(cum_doses[, ]) <- 0
+initial(inc_doses[, ], zero_every = 1) <- 0
 dim(S, E, I, H, R, D_hosp, D_comm, cum_infections, cum_hosp,
-    inc_infections, inc_hosp, inc_deaths_hosp, inc_deaths_comm) <- c(n_group, 2)
+    inc_infections, inc_hosp, inc_deaths_hosp, inc_deaths_comm,
+    cum_doses, inc_doses) <- c(n_group, 2)
 
-deriv(S[, ]) <- -n_SE[i, j]
+deriv(S[, ]) <- -n_SE[i, j] - n_SV[i, j] + n_SV_in[i, j]
 deriv(E[, ]) <- n_SE[i, j] - n_EI[i, j]
 deriv(I[, ]) <- n_EI[i, j] - n_I_out[i, j]
 deriv(H[, ]) <- n_IH[i, j] - n_H_out[i, j]
-deriv(R[, ]) <- n_I_out[i, j] - n_IH[i, j] - n_ID[i, j] + n_H_out[i, j] - n_HD[i, j]
+deriv(R[, ]) <- n_I_out[i, j] - n_IH[i, j] - n_ID[i, j] + n_H_out[i, j] - n_HD[i, j] -
+  n_RV[i, j] + n_RV_in[i, j]
 deriv(D_hosp[, ]) <- n_HD[i, j]
 deriv(D_comm[, ]) <- n_ID[i, j]
 deriv(cum_infections[, ]) <- n_SE[i, j]
@@ -113,6 +150,8 @@ deriv(inc_infections[, ]) <- n_SE[i, j]
 deriv(inc_hosp[, ]) <- n_IH[i, j]
 deriv(inc_deaths_hosp[, ]) <- n_HD[i, j]
 deriv(inc_deaths_comm[, ]) <- n_ID[i, j]
+deriv(cum_doses[, ]) <- n_SV_in[i, j] + n_RV_in[i, j]
+deriv(inc_doses[, ]) <- n_SV_in[i, j] + n_RV_in[i, j]
 
 ## ---- Comparison to data (used only when fitting) --------------------------
 # Observed daily hospital admissions, as n_obs series. obs_map[k, g] = 1 if

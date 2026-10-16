@@ -14,7 +14,7 @@ The R layer takes care of the rest:
 | File | Role |
 |---|---|
 | `R/build_model.R` | turns user arguments into the parameter list the odin models expect (`model$pars`) |
-| `R/params.R` | expands parameters to age × region, builds the contact multiplier schedule |
+| `R/params.R` | expands parameters to age × region, builds the contact multiplier and vaccination schedules |
 | `R/mixing.R` | combines the age and region mixing matrices |
 | `R/r0.R` | next-generation matrix, R0 and R_eff |
 | `R/run.R` | creates and runs the dust2 system, reshapes output to `[age, region, vacc_status, sim, time]` |

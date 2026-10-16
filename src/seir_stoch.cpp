@@ -25,6 +25,9 @@
 // [[dust2::parameter(R_ini, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_mult_value, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(n_vacc_time, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
+// [[dust2::parameter(vacc_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(vacc_doses_value, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(n_obs, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(obs_map, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(nb_size, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
@@ -39,7 +42,7 @@ public:
         dust2::packing state;
       } packing;
       struct {
-        std::array<size_t, 13> state;
+        std::array<size_t, 15> state;
       } offset;
     } odin;
     struct dim_type {
@@ -51,11 +54,17 @@ public:
       dust2::array::dimensions<1> beta_time;
       dust2::array::dimensions<2> beta_mult_value;
       dust2::array::dimensions<1> beta_mult;
+      dust2::array::dimensions<1> vacc_time;
+      dust2::array::dimensions<2> vacc_doses_value;
+      dust2::array::dimensions<1> vacc_doses;
       dust2::array::dimensions<1> N;
       dust2::array::dimensions<1> prev;
       dust2::array::dimensions<2> contact_prev;
       dust2::array::dimensions<1> lambda;
-      dust2::array::dimensions<2> p_SE;
+      dust2::array::dimensions<1> vacc_eligible;
+      dust2::array::dimensions<2> vacc_rate_s;
+      dust2::array::dimensions<2> rate_SE;
+      dust2::array::dimensions<2> n_S_out;
       dust2::array::dimensions<2> n_SE;
       dust2::array::dimensions<2> S;
       dust2::array::dimensions<2> obs_map;
@@ -69,6 +78,7 @@ public:
     real_type sigma;
     real_type gamma;
     int n_contact_time;
+    int n_vacc_time;
     int n_obs;
     real_type nb_size;
     std::vector<real_type> contact_time;
@@ -85,12 +95,16 @@ public:
     std::vector<real_type> R_ini;
     std::vector<real_type> beta_time;
     std::vector<real_type> beta_mult_value;
+    std::vector<real_type> vacc_time;
+    std::vector<real_type> vacc_doses_value;
     std::vector<real_type> obs_map;
     dust2::interpolate::InterpolateConstantArray<real_type, 2> interpolate_contact;
     dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_beta_mult;
+    dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_vacc_doses;
   };
   struct internal_state {
     std::vector<real_type> N;
+    std::vector<real_type> vacc_eligible;
     std::vector<real_type> n_EI;
     std::vector<real_type> n_I_out;
     std::vector<real_type> prev;
@@ -100,11 +114,22 @@ public:
     std::vector<real_type> n_H_out;
     std::vector<real_type> contact;
     std::vector<real_type> beta_mult;
+    std::vector<real_type> vacc_doses;
     std::vector<real_type> contact_prev;
+    std::vector<real_type> vacc_rate;
     std::vector<real_type> n_HD;
     std::vector<real_type> lambda;
-    std::vector<real_type> p_SE;
+    std::vector<real_type> vacc_rate_s;
+    std::vector<real_type> rate_SE;
+    std::vector<real_type> p_RV;
+    std::vector<real_type> p_S_out;
+    std::vector<real_type> p_SE_given_out;
+    std::vector<real_type> n_RV;
+    std::vector<real_type> n_S_out;
+    std::vector<real_type> n_RV_in;
     std::vector<real_type> n_SE;
+    std::vector<real_type> n_SV;
+    std::vector<real_type> n_SV_in;
     std::vector<real_type> adm_contrib;
     std::vector<real_type> model_admissions;
   };
@@ -122,6 +147,7 @@ public:
     const real_type sigma = dust2::r::read_real(parameters, "sigma");
     const real_type gamma = dust2::r::read_real(parameters, "gamma");
     const int n_contact_time = dust2::r::read_int(parameters, "n_contact_time");
+    const int n_vacc_time = dust2::r::read_int(parameters, "n_vacc_time");
     const int n_obs = dust2::r::read_int(parameters, "n_obs");
     const real_type nb_size = dust2::r::read_real(parameters, "nb_size");
     dim.contact_time.set({static_cast<size_t>(n_contact_time)});
@@ -132,11 +158,17 @@ public:
     dim.beta_time.set({static_cast<size_t>(n_beta_time)});
     dim.beta_mult_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_beta_time)});
     dim.beta_mult.set({static_cast<size_t>(n_group)});
+    dim.vacc_time.set({static_cast<size_t>(n_vacc_time)});
+    dim.vacc_doses_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_vacc_time)});
+    dim.vacc_doses.set({static_cast<size_t>(n_group)});
     dim.N.set({static_cast<size_t>(n_group)});
     dim.prev.set({static_cast<size_t>(n_group)});
     dim.contact_prev.set({static_cast<size_t>(n_group), static_cast<size_t>(n_group)});
     dim.lambda.set({static_cast<size_t>(n_group)});
-    dim.p_SE.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
+    dim.vacc_eligible.set({static_cast<size_t>(n_group)});
+    dim.vacc_rate_s.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
+    dim.rate_SE.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
+    dim.n_S_out.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
     dim.n_SE.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
     dim.S.set({static_cast<size_t>(n_group), static_cast<size_t>(2)});
     dim.obs_map.set({static_cast<size_t>(n_obs), static_cast<size_t>(n_group)});
@@ -171,10 +203,15 @@ public:
     dust2::r::read_real_array(parameters, dim.beta_time, beta_time.data(), "beta_time", true);
     std::vector<real_type> beta_mult_value(dim.beta_mult_value.size);
     dust2::r::read_real_array(parameters, dim.beta_mult_value, beta_mult_value.data(), "beta_mult_value", true);
+    std::vector<real_type> vacc_time(dim.vacc_time.size);
+    dust2::r::read_real_array(parameters, dim.vacc_time, vacc_time.data(), "vacc_time", true);
+    std::vector<real_type> vacc_doses_value(dim.vacc_doses_value.size);
+    dust2::r::read_real_array(parameters, dim.vacc_doses_value, vacc_doses_value.data(), "vacc_doses_value", true);
     std::vector<real_type> obs_map(dim.obs_map.size);
     dust2::r::read_real_array(parameters, dim.obs_map, obs_map.data(), "obs_map", true);
     const auto interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(contact_time, contact_value, dim.contact, "contact_time", "contact_value");
     const auto interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(beta_time, beta_mult_value, dim.beta_mult, "beta_time", "beta_mult_value");
+    const auto interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(vacc_time, vacc_doses_value, dim.vacc_doses, "vacc_time", "vacc_doses_value");
     shared_state::odin_internals_type odin;
     odin.packing.state = dust2::packing{
       {"S", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
@@ -189,30 +226,44 @@ public:
       {"inc_infections", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
       {"inc_hosp", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
       {"inc_deaths_hosp", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
-      {"inc_deaths_comm", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())}
+      {"inc_deaths_comm", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
+      {"cum_doses", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
+      {"inc_doses", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())}
     };
     odin.packing.state.copy_offset(odin.offset.state.begin());
-    return shared_state{odin, dim, n_group, n_beta_time, beta, sigma, gamma, n_contact_time, n_obs, nb_size, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, dur_hosp, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, obs_map, interpolate_contact, interpolate_beta_mult};
+    return shared_state{odin, dim, n_group, n_beta_time, beta, sigma, gamma, n_contact_time, n_vacc_time, n_obs, nb_size, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, dur_hosp, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, vacc_time, vacc_doses_value, obs_map, interpolate_contact, interpolate_beta_mult, interpolate_vacc_doses};
   }
   static internal_state build_internal(const shared_state& shared) {
     std::vector<real_type> N(shared.dim.N.size);
+    std::vector<real_type> vacc_eligible(shared.dim.vacc_eligible.size);
     std::vector<real_type> n_EI(shared.dim.n_SE.size);
     std::vector<real_type> n_I_out(shared.dim.n_SE.size);
     std::vector<real_type> prev(shared.dim.prev.size);
-    std::vector<real_type> p_H_out(shared.dim.p_SE.size);
+    std::vector<real_type> p_H_out(shared.dim.rate_SE.size);
     std::vector<real_type> n_IH(shared.dim.n_SE.size);
     std::vector<real_type> n_ID(shared.dim.n_SE.size);
     std::vector<real_type> n_H_out(shared.dim.n_SE.size);
     std::vector<real_type> contact(shared.dim.contact.size);
     std::vector<real_type> beta_mult(shared.dim.beta_mult.size);
+    std::vector<real_type> vacc_doses(shared.dim.vacc_doses.size);
     std::vector<real_type> contact_prev(shared.dim.contact_prev.size);
+    std::vector<real_type> vacc_rate(shared.dim.vacc_eligible.size);
     std::vector<real_type> n_HD(shared.dim.n_SE.size);
     std::vector<real_type> lambda(shared.dim.lambda.size);
-    std::vector<real_type> p_SE(shared.dim.p_SE.size);
+    std::vector<real_type> vacc_rate_s(shared.dim.vacc_rate_s.size);
+    std::vector<real_type> rate_SE(shared.dim.rate_SE.size);
+    std::vector<real_type> p_RV(shared.dim.rate_SE.size);
+    std::vector<real_type> p_S_out(shared.dim.rate_SE.size);
+    std::vector<real_type> p_SE_given_out(shared.dim.rate_SE.size);
+    std::vector<real_type> n_RV(shared.dim.n_S_out.size);
+    std::vector<real_type> n_S_out(shared.dim.n_S_out.size);
+    std::vector<real_type> n_RV_in(shared.dim.n_S_out.size);
     std::vector<real_type> n_SE(shared.dim.n_SE.size);
+    std::vector<real_type> n_SV(shared.dim.n_S_out.size);
+    std::vector<real_type> n_SV_in(shared.dim.n_S_out.size);
     std::vector<real_type> adm_contrib(shared.dim.adm_contrib.size);
     std::vector<real_type> model_admissions(shared.dim.model_admissions.size);
-    return internal_state{N, n_EI, n_I_out, prev, p_H_out, n_IH, n_ID, n_H_out, contact, beta_mult, contact_prev, n_HD, lambda, p_SE, n_SE, adm_contrib, model_admissions};
+    return internal_state{N, vacc_eligible, n_EI, n_I_out, prev, p_H_out, n_IH, n_ID, n_H_out, contact, beta_mult, vacc_doses, contact_prev, vacc_rate, n_HD, lambda, vacc_rate_s, rate_SE, p_RV, p_S_out, p_SE_given_out, n_RV, n_S_out, n_RV_in, n_SE, n_SV, n_SV_in, adm_contrib, model_admissions};
   }
   static data_type build_data(cpp11::list data, const shared_state& shared) {
     auto admissions = std::vector<real_type>(shared.dim.admissions.size);
@@ -238,9 +289,12 @@ public:
     dust2::r::read_real_array(parameters, shared.dim.S_ini, shared.R_ini.data(), "R_ini", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_time, shared.beta_time.data(), "beta_time", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_mult_value, shared.beta_mult_value.data(), "beta_mult_value", false);
+    dust2::r::read_real_array(parameters, shared.dim.vacc_time, shared.vacc_time.data(), "vacc_time", false);
+    dust2::r::read_real_array(parameters, shared.dim.vacc_doses_value, shared.vacc_doses_value.data(), "vacc_doses_value", false);
     dust2::r::read_real_array(parameters, shared.dim.obs_map, shared.obs_map.data(), "obs_map", false);
     shared.interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(shared.contact_time, shared.contact_value, shared.dim.contact, "contact_time", "contact_value");
     shared.interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.beta_time, shared.beta_mult_value, shared.dim.beta_mult, "beta_time", "beta_mult_value");
+    shared.interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.vacc_time, shared.vacc_doses_value, shared.dim.vacc_doses, "vacc_time", "vacc_doses_value");
   }
   static void update_internal(const shared_state& shared, internal_state& internal) {
   }
@@ -310,6 +364,16 @@ public:
         state[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[12]] = 0;
       }
     }
+    for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
+        state[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[13]] = 0;
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
+        state[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[14]] = 0;
+      }
+    }
   }
   static void update(real_type time, real_type dt, const real_type* state, const shared_state& shared, internal_state& internal, rng_state_type& rng_state, real_type* state_next) {
     const auto * S = state + 0;
@@ -325,10 +389,15 @@ public:
     const auto * inc_hosp = state + shared.odin.offset.state[10];
     const auto * inc_deaths_hosp = state + shared.odin.offset.state[11];
     const auto * inc_deaths_comm = state + shared.odin.offset.state[12];
+    const auto * cum_doses = state + shared.odin.offset.state[13];
+    const auto * inc_doses = state + shared.odin.offset.state[14];
     const real_type p_EI = 1 - monty::math::exp<real_type>(-shared.sigma * dt);
     const real_type p_I_out = 1 - monty::math::exp<real_type>(-shared.gamma * dt);
     for (size_t i = 1; i <= shared.dim.N.size; ++i) {
       internal.N[i - 1] = dust2::array::sum<real_type>(S, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1}) + dust2::array::sum<real_type>(E, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1}) + dust2::array::sum<real_type>(I, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1}) + dust2::array::sum<real_type>(H, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1}) + dust2::array::sum<real_type>(R, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1});
+    }
+    for (size_t i = 1; i <= shared.dim.vacc_eligible.size; ++i) {
+      internal.vacc_eligible[i - 1] = S[i - 1] + R[i - 1];
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {
@@ -343,9 +412,9 @@ public:
     for (size_t i = 1; i <= shared.dim.prev.size; ++i) {
       internal.prev[i - 1] = (shared.trans[i - 1] * I[i - 1] + shared.trans[i - 1 + shared.dim.sus.mult[1]] * I[i - 1 + shared.dim.S.mult[1]]) / internal.N[i - 1];
     }
-    for (size_t i = 1; i <= shared.dim.p_SE.dim[0]; ++i) {
-      for (size_t j = 1; j <= shared.dim.p_SE.dim[1]; ++j) {
-        internal.p_H_out[i - 1 + (j - 1) * shared.dim.p_SE.mult[1]] = 1 - monty::math::exp<real_type>(-dt / shared.dur_hosp[i - 1 + (j - 1) * shared.dim.sus.mult[1]]);
+    for (size_t i = 1; i <= shared.dim.rate_SE.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.rate_SE.dim[1]; ++j) {
+        internal.p_H_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] = 1 - monty::math::exp<real_type>(-dt / shared.dur_hosp[i - 1 + (j - 1) * shared.dim.sus.mult[1]]);
       }
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
@@ -360,15 +429,19 @@ public:
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {
-        internal.n_H_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, H[i - 1 + (j - 1) * shared.dim.S.mult[1]], internal.p_H_out[i - 1 + (j - 1) * shared.dim.p_SE.mult[1]]);
+        internal.n_H_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, H[i - 1 + (j - 1) * shared.dim.S.mult[1]], internal.p_H_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]]);
       }
     }
     shared.interpolate_contact.eval(time, internal.contact);
     shared.interpolate_beta_mult.eval(time, internal.beta_mult);
+    shared.interpolate_vacc_doses.eval(time, internal.vacc_doses);
     for (size_t i = 1; i <= shared.dim.contact_prev.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.contact_prev.dim[1]; ++j) {
         internal.contact_prev[i - 1 + (j - 1) * shared.dim.contact_prev.mult[1]] = internal.contact[i - 1 + (j - 1) * shared.dim.contact.mult[1]] * monty::math::min<real_type>(internal.beta_mult[i - 1], internal.beta_mult[j - 1]) * internal.prev[j - 1];
       }
+    }
+    for (size_t i = 1; i <= shared.dim.vacc_eligible.size; ++i) {
+      internal.vacc_rate[i - 1] = monty::math::min<real_type>(internal.vacc_doses[i - 1] / monty::math::max<real_type>(internal.vacc_eligible[i - 1], static_cast<real_type>(1e-10)), 10);
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {
@@ -378,19 +451,67 @@ public:
     for (size_t i = 1; i <= shared.dim.lambda.size; ++i) {
       internal.lambda[i - 1] = shared.beta * dust2::array::sum<real_type>(internal.contact_prev.data(), shared.dim.contact_prev, {i - 1, i - 1}, {0, shared.dim.contact_prev.dim[1] - 1});
     }
-    for (size_t i = 1; i <= shared.dim.p_SE.dim[0]; ++i) {
-      for (size_t j = 1; j <= shared.dim.p_SE.dim[1]; ++j) {
-        internal.p_SE[i - 1 + (j - 1) * shared.dim.p_SE.mult[1]] = 1 - monty::math::exp<real_type>(-internal.lambda[i - 1] * shared.sus[i - 1 + (j - 1) * shared.dim.sus.mult[1]] * dt);
+    for (size_t i = 1; i <= shared.dim.vacc_rate_s.dim[0]; ++i) {
+      internal.vacc_rate_s[i - 1] = internal.vacc_rate[i - 1];
+    }
+    for (size_t i = 1; i <= shared.dim.vacc_rate_s.dim[0]; ++i) {
+      internal.vacc_rate_s[i - 1 + shared.dim.vacc_rate_s.mult[1]] = 0;
+    }
+    for (size_t i = 1; i <= shared.dim.rate_SE.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.rate_SE.dim[1]; ++j) {
+        internal.rate_SE[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] = internal.lambda[i - 1] * shared.sus[i - 1 + (j - 1) * shared.dim.sus.mult[1]];
       }
+    }
+    for (size_t i = 1; i <= shared.dim.rate_SE.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.rate_SE.dim[1]; ++j) {
+        internal.p_RV[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] = 1 - monty::math::exp<real_type>(-internal.vacc_rate_s[i - 1 + (j - 1) * shared.dim.vacc_rate_s.mult[1]] * dt);
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.rate_SE.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.rate_SE.dim[1]; ++j) {
+        internal.p_S_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] = 1 - monty::math::exp<real_type>(-(internal.rate_SE[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] + internal.vacc_rate_s[i - 1 + (j - 1) * shared.dim.vacc_rate_s.mult[1]]) * dt);
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.rate_SE.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.rate_SE.dim[1]; ++j) {
+        internal.p_SE_given_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] = internal.rate_SE[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] / monty::math::max<real_type>(internal.rate_SE[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]] + internal.vacc_rate_s[i - 1 + (j - 1) * shared.dim.vacc_rate_s.mult[1]], static_cast<real_type>(1.0000000000000001e-30));
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.n_S_out.dim[1]; ++j) {
+        internal.n_RV[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] = monty::random::binomial<real_type>(rng_state, R[i - 1 + (j - 1) * shared.dim.S.mult[1]], internal.p_RV[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]]);
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.n_S_out.dim[1]; ++j) {
+        internal.n_S_out[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] = monty::random::binomial<real_type>(rng_state, S[i - 1 + (j - 1) * shared.dim.S.mult[1]], internal.p_S_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]]);
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      internal.n_RV_in[i - 1] = 0;
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      internal.n_RV_in[i - 1 + shared.dim.n_S_out.mult[1]] = internal.n_RV[i - 1];
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {
-        internal.n_SE[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, S[i - 1 + (j - 1) * shared.dim.S.mult[1]], internal.p_SE[i - 1 + (j - 1) * shared.dim.p_SE.mult[1]]);
+        internal.n_SE[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] = monty::random::binomial<real_type>(rng_state, internal.n_S_out[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]], internal.p_SE_given_out[i - 1 + (j - 1) * shared.dim.rate_SE.mult[1]]);
       }
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.n_S_out.dim[1]; ++j) {
+        internal.n_SV[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] = internal.n_S_out[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] - internal.n_SE[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]];
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      internal.n_SV_in[i - 1] = 0;
+    }
+    for (size_t i = 1; i <= shared.dim.n_S_out.dim[0]; ++i) {
+      internal.n_SV_in[i - 1 + shared.dim.n_S_out.mult[1]] = internal.n_SV[i - 1];
     }
     for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
-        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + 0] = S[i - 1 + (j - 1) * shared.dim.S.mult[1]] - internal.n_SE[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]];
+        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + 0] = S[i - 1 + (j - 1) * shared.dim.S.mult[1]] - internal.n_S_out[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] + internal.n_SV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]];
       }
     }
     for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
@@ -410,7 +531,7 @@ public:
     }
     for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
-        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[4]] = R[i - 1 + (j - 1) * shared.dim.S.mult[1]] + internal.n_I_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_IH[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_ID[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] + internal.n_H_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_HD[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]];
+        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[4]] = R[i - 1 + (j - 1) * shared.dim.S.mult[1]] + internal.n_I_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_IH[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_ID[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] + internal.n_H_out[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_HD[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]] - internal.n_RV[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] + internal.n_RV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]];
       }
     }
     for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
@@ -453,9 +574,19 @@ public:
         state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[12]] = inc_deaths_comm[i - 1 + (j - 1) * shared.dim.S.mult[1]] + internal.n_ID[i - 1 + (j - 1) * shared.dim.n_SE.mult[1]];
       }
     }
+    for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
+        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[13]] = cum_doses[i - 1 + (j - 1) * shared.dim.S.mult[1]] + internal.n_SV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] + internal.n_RV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]];
+      }
+    }
+    for (size_t i = 1; i <= shared.dim.S.dim[0]; ++i) {
+      for (size_t j = 1; j <= shared.dim.S.dim[1]; ++j) {
+        state_next[i - 1 + (j - 1) * shared.dim.S.mult[1] + shared.odin.offset.state[14]] = inc_doses[i - 1 + (j - 1) * shared.dim.S.mult[1]] + internal.n_SV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]] + internal.n_RV_in[i - 1 + (j - 1) * shared.dim.n_S_out.mult[1]];
+      }
+    }
   }
   static auto zero_every(const shared_state& shared) {
-    return dust2::zero_every_type<real_type>{{1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[9])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[10])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[11])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[12])}}};
+    return dust2::zero_every_type<real_type>{{1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[9])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[10])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[11])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[12])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[14])}}};
   }
   static real_type compare_data(real_type time, const real_type* state, const data_type& data, const shared_state& shared, internal_state& internal, rng_state_type& rng_state) {
     auto unless_nan = [](real_type x) { return std::isnan(x) ? 0 : x; };

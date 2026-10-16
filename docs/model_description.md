@@ -24,7 +24,7 @@ Every group and stratum has the compartments
 - **R:** recovered and immune. There is no waning.
 - **D_hosp, D_comm:** cumulative deaths in hospital and in the community.
 
-Vaccination is an **initial coverage** only: a fraction `vacc_coverage` of each group starts in $S_{g1}$. Nobody changes vaccination status during a run.
+Vaccination is an **initial coverage**, `vacc_coverage`: that fraction of each group starts in $S_{g1}$. Optionally, **`vacc_schedule`** gives doses during the run as well (see [Vaccination over time](#vaccination-over-time)). Nobody loses vaccinated status.
 
 ## Force of infection
 
@@ -76,6 +76,26 @@ Each entry replaces `C_age`, `M_region` or both from its time onwards; whichever
 
 **R0 is calibrated from the mixing at time 0.** `R_eff(model, time)` uses the matrix in force at `time`, so it reflects later changes.
 
+## Vaccination over time
+
+`vacc_schedule` gives doses per day from given times, for everyone or for chosen age groups and regions:
+
+```r
+build_model(...,
+  vacc_schedule = data.frame(time  = c(40, 70),
+                             doses = c(5000, 0),     # 5,000 a day from day 40 to day 70
+                             age   = "65+"))
+```
+
+- Rows follow the same rules as `beta_schedule`: from `time` onwards, the groups a row matches (`NA`, or a missing `age`/`region` column, matches all) receive `doses` per day between them, shared in proportion to their population, until a later row matching them overrides it. Before the first row, no doses are given. `doses = 0` ends a campaign.
+- Doses go to **unvaccinated people who are not ill**: $S_{g0}$ and $R_{g0}$, in proportion to their size. They move to $S_{g1}$ and $R_{g1}$ respectively, so a dose given to someone who has already recovered changes nothing, as in reality. People in E, I or H are not vaccinated.
+- **Protection is immediate**: a vaccinated person has the vaccinated parameters from the moment of the dose. To approximate a delay until protection, start the schedule correspondingly later.
+- In group $g$, the doses $d_g(t)$ are given at per-capita rate $\min\big(d_g(t) / (S_{g0} + R_{g0}),\ 10\big)$ per day among the eligible. This delivers exactly $d_g$ a day while enough eligible people remain; when they run out, the cap makes vaccination slow and stop instead of driving the compartments negative.
+- Doses given are recorded as `cum_doses` and `inc_doses`, under `vacc_status = "vaccinated"`. The initial coverage is not counted.
+- `R_eff(model, time)` uses the initial coverage only, not the doses given since.
+
+Because doses change the dynamics from their start time onwards, unlike `vacc_coverage`, a vaccination schedule *can* be applied to a projection that continues from a fit (see [Uncertainty in projections](#uncertainty-in-projections)).
+
 ## Vaccine effects
 
 The vaccinated stratum uses the unvaccinated parameters multiplied by one minus the vaccine effectiveness (VE). Each VE can vary by age and region.
@@ -108,7 +128,9 @@ The stochastic model uses tau-leaping with a fixed time step `dt`. Each step:
 
 | Transition | Draw |
 |---|---|
-| S → E | $\text{Bin}(S, 1 - e^{-\lambda\,\text{sus}\,dt})$ |
+| leaving S | $n_S = \text{Bin}(S, 1 - e^{-(\lambda\,\text{sus} + v)\,dt})$, with $v$ the vaccination rate (0 in the vaccinated stratum) |
+| S → E | $\text{Bin}(n_S, \lambda\,\text{sus} / (\lambda\,\text{sus} + v))$; the rest of $n_S$ is vaccinated |
+| R vaccinated | $\text{Bin}(R, 1 - e^{-v\,dt})$ |
 | E → I | $\text{Bin}(E, 1 - e^{-\sigma dt})$ |
 | leaving I | $n_I = \text{Bin}(I, 1 - e^{-\gamma dt})$ |
 | I → H | $\text{Bin}(n_I, p_\text{hosp})$ |
@@ -140,8 +162,8 @@ All outputs are recorded daily and stratified by age, region and vaccination sta
 |---|---|
 | `S`, `E`, `I`, `H`, `R` | number in each compartment (`H` = hospital occupancy) |
 | `D_hosp`, `D_comm`, `D` | cumulative deaths (hospital, community, both) |
-| `cum_infections`, `cum_hosp` | cumulative infections, hospital admissions |
-| `inc_infections`, `inc_hosp`, `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths` | new infections / admissions / deaths during day $(t-1, t]$ |
+| `cum_infections`, `cum_hosp`, `cum_doses` | cumulative infections, hospital admissions, doses given by `vacc_schedule` |
+| `inc_infections`, `inc_hosp`, `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths`, `inc_doses` | new infections / admissions / deaths / doses during day $(t-1, t]$ |
 
 Initial infections (`I0`, `E0`) are not counted in `cum_infections` or `inc_infections`.
 
@@ -213,4 +235,4 @@ The alternative, `update_model(fit$model, ...)`, gives a single trajectory at th
 
 One more thing to keep in mind: the bands are **pointwise**. The median curve is the median at each day, not any single draw, and with spread-out peak timing it is flatter than every individual trajectory.
 
-Note that a scenario starting from a filtered state cannot change the past: `vacc_coverage`, `I0` and anything else that only sets initial conditions has no effect, because the state already encodes them. Only parameters governing the dynamics after `from` matter.
+Note that a scenario starting from a filtered state cannot change the past: `vacc_coverage`, `I0` and anything else that only sets initial conditions has no effect, because the state already encodes them. Only parameters governing the dynamics after `from` matter — `beta_schedule`, `mixing_schedule` and `vacc_schedule` entries from `from` onwards. So vaccinating from the end of the data is a `vacc_schedule` starting at `from`, not a change to `vacc_coverage`.

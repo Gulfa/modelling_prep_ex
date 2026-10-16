@@ -8,9 +8,11 @@
 #' (length `n_region`, or named with the region labels) or an
 #' `n_age x n_region` matrix.
 #'
-#' Vaccination is a fixed initial coverage. Vaccinated people differ from
+#' Vaccination is an initial coverage (`vacc_coverage`), plus optionally doses
+#' given during the epidemic (`vacc_schedule`). Vaccinated people differ from
 #' unvaccinated people only through the vaccine effectiveness (VE) arguments,
-#' which can also vary by age and region:
+#' which can also vary by age and region, and protection starts as soon as a
+#' dose is given:
 #'
 #' * `ve_infection`: susceptibility is multiplied by `1 - ve_infection`.
 #' * `ve_transmission`: infectiousness of vaccinated infected people is
@@ -44,6 +46,15 @@
 #' @param dur_hosp_vacc Mean length of stay for vaccinated patients (default:
 #'   `dur_hosp`).
 #' @param vacc_coverage Fraction of each group vaccinated at the start.
+#' @param vacc_schedule Optional vaccination during the epidemic: a data.frame
+#'   with columns `time` and `doses` (doses per day), and optionally `age`
+#'   and/or `region` to target groups (`NA` = all). Rows work as in
+#'   `beta_schedule`: from `time` onwards the matching groups receive `doses`
+#'   per day between them, shared in proportion to their population, until a
+#'   later row matching them overrides it (`doses = 0` ends a campaign). Doses
+#'   go to unvaccinated people who are not ill (S and R, in proportion), so
+#'   doses given to people who have already recovered protect nobody. When a
+#'   group's unvaccinated S and R run out, its vaccination stops.
 #' @param ve_infection,ve_transmission,ve_hosp,ve_death Vaccine effectiveness,
 #'   see Details.
 #' @param I0,E0 Initial number of infectious / exposed people (placed in the
@@ -90,7 +101,8 @@ build_model <- function(N,
                         I0 = 0,
                         E0 = 0,
                         beta_schedule = NULL,
-                        mixing_schedule = NULL) {
+                        mixing_schedule = NULL,
+                        vacc_schedule = NULL) {
   args <- as.list(environment())
 
   pop <- parse_population(N)
@@ -145,6 +157,7 @@ build_model <- function(N,
   zero <- matrix(0, n_group, 2)
 
   sched <- build_beta_schedule(beta_schedule, dims)
+  vacc <- build_vacc_schedule(vacc_schedule, dims, N)
 
   pars <- list(
     n_group = n_group,
@@ -167,6 +180,9 @@ build_model <- function(N,
     R_ini = zero,
     beta_time = sched$time,
     beta_mult_value = sched$value,
+    n_vacc_time = length(vacc$time),
+    vacc_time = vacc$time,
+    vacc_doses_value = vacc$value,
     # Observation model, only used when fitting (fit_model() replaces these)
     n_obs = 1L,
     obs_map = matrix(1, 1, n_group),
@@ -251,6 +267,13 @@ print.seirvax_model <- function(x, ...) {
   if (x$pars$n_beta_time > 1) {
     cat(sprintf("  Contact multipliers change at time(s): %s\n",
                 paste(x$pars$beta_time[-1], collapse = ", ")))
+  }
+  if (any(x$pars$vacc_doses_value > 0)) {
+    doses <- colSums(x$pars$vacc_doses_value)
+    cat(sprintf("  Vaccination: %s\n", paste(sprintf(
+      "%s doses/day from day %g",
+      format(round(doses), big.mark = ",", scientific = FALSE, trim = TRUE),
+      x$pars$vacc_time), collapse = ", ")))
   }
   cat("  Parameters by age (averaged over regions, population-weighted):\n")
   w <- x$N / rowSums(x$N)

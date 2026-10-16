@@ -31,9 +31,10 @@ compiler is needed, since the models are compiled on installation.
 
 - Age groups and regions, with their contact matrices combined into one
   structure.
-- A vaccinated stratum running in parallel with the unvaccinated one, with
-  vaccine effectiveness against infection, transmission, hospitalisation and
-  death that can vary by age.
+- A vaccinated stratum running in parallel with the unvaccinated one, filled
+  by an initial coverage and by vaccination campaigns over time, with vaccine
+  effectiveness against infection, transmission, hospitalisation and death that
+  can vary by age.
 - Hospitalisations, hospital deaths and community deaths.
 - Contact multipliers and mixing matrices that change over time, for
   interventions.

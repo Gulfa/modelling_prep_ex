@@ -32,7 +32,8 @@ r0_per_beta <- function(contact, sus, trans, N_group, infectious_period) {
 #' next-generation matrix for a fully susceptible, unvaccinated population
 #' without contact multipliers. `R_eff` uses the susceptible population
 #' (including vaccinated) and the contact multipliers at time `time`,
-#' assuming nobody has been infected yet.
+#' assuming nobody has been infected yet. Doses given by `vacc_schedule` are
+#' not included: `R_eff` only knows the initial coverage.
 #'
 #' Note that the NGM R0 gives the right *generation-to-generation* growth once
 #' the epidemic has settled into the dominant eigenvector's age/region

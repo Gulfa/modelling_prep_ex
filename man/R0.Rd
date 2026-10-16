@@ -22,7 +22,8 @@ A single number.
 next-generation matrix for a fully susceptible, unvaccinated population
 without contact multipliers. \code{R_eff} uses the susceptible population
 (including vaccinated) and the contact multipliers at time \code{time},
-assuming nobody has been infected yet.
+assuming nobody has been infected yet. Doses given by \code{vacc_schedule} are
+not included: \code{R_eff} only knows the initial coverage.
 }
 \details{
 Note that the NGM R0 gives the right \emph{generation-to-generation} growth once

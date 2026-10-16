@@ -3,7 +3,7 @@
 An SEIR model with hospitalisation, death and vaccination, built for preparedness exercises.
 
 - Stratified by **age group** and **region**. Age and region contact matrices are combined into one contact structure.
-- Has a **vaccinated stratum** that runs in parallel with the unvaccinated one. Vaccine effectiveness against infection, onward transmission, hospitalisation and death can vary by age.
+- Has a **vaccinated stratum** that runs in parallel with the unvaccinated one, filled by an initial coverage and by **vaccination campaigns over time** (doses per day, targeted by age or region). Vaccine effectiveness against infection, onward transmission, hospitalisation and death can vary by age.
 - Hospitalisation, **hospital deaths** and **community deaths**.
 - **Contact multipliers over time** (interventions), either global or targeted at specific regions or age groups, plus **mixing matrices that can change over time** (school holidays, travel restrictions).
 - A **deterministic** (ODE) and a **stochastic** (tau-leaping) version of the same model, written in [odin2](https://mrc-ide.github.io/odin2/) and run with [dust2](https://mrc-ide.github.io/dust2/).
@@ -129,7 +129,7 @@ The scripts in [`examples/`](examples/) take the features one at a time:
 5. [`05_fitting.R`](examples/05_fitting.R): fitting R0 to hospital admissions with each method, and projecting from the fit.
 6. [`06_country_data.R`](examples/06_country_data.R): building a model for one of the bundled countries, and mapping the results.
 7. [`07_line_list_exercise.R`](examples/07_line_list_exercise.R): generating a line list for an exercise, then fitting R0 to it and projecting.
-8. [`08_vaccination.R`](examples/08_vaccination.R): what each kind of vaccine effectiveness does, the coverage needed to stop growth, and whether to give a fixed number of doses to the old or the young.
+8. [`08_vaccination.R`](examples/08_vaccination.R): what each kind of vaccine effectiveness does, the coverage needed to stop growth, whether to give a fixed number of doses to the old or the young, and when to start a campaign during the epidemic.
 
 The worked document above, [`examples/influenza.qmd`](examples/influenza.qmd),
 puts all of it together on one outbreak.
