@@ -1,4 +1,6 @@
+# simulate_line_list() needs sf for the distances between regions
 small_line_list <- function(...) {
+  skip_if_not_installed("sf")
   args <- list(country = "Sweway", R0 = 2, t_max = 50, seed = 1, min_cases = 1,
                max_tries = 1)
   args[names(list(...))] <- list(...)
@@ -86,6 +88,7 @@ test_that("results are reproducible and start_date can be dropped", {
 })
 
 test_that("a faded-out epidemic warns rather than failing", {
+  skip_if_not_installed("sf")
   expect_warning(simulate_line_list("Sweway", R0 = 0.5, t_max = 20, n_seed = 1,
                                     seed = 2, min_cases = 1000, max_tries = 2),
                  "faded out")
@@ -102,6 +105,21 @@ test_that("admissions_from_line_list counts every admission", {
   by_region <- admissions_from_line_list(ll, by = "region")
   expect_equal(sum(by_region$admissions), sum(ll$hospitalised))
   expect_setequal(names(by_region), c("time", "region", "admissions"))
+
+  # split by age, named as fit_model() expects
+  by_age <- admissions_from_line_list(ll, by = "age")
+  expect_setequal(names(by_age), c("time", "age", "admissions"))
+  expect_equal(sum(by_age$admissions), sum(ll$hospitalised))
+  expect_identical(admissions_from_line_list(ll, by = "age_group"), by_age)
+  # ... and fit_model() accepts it when the age groups match the model's
+  breaks <- c(0, 20, 65)
+  ll_coarse <- small_line_list(age_breaks = breaks)
+  N <- population_matrix("Sweway", age_breaks = breaks)
+  m <- build_model(N = N, C_age = age_contact_matrix(rownames(N)),
+                   M_region = attr(ll_coarse, "truth")$model$M_region,
+                   R0 = 2, I0 = 1)
+  obs <- prepare_fit_data(admissions_from_line_list(ll_coarse, by = "age"), m)
+  expect_setequal(obs$series$age, unique(as.character(ll_coarse$age_group)))
 
   # an earlier start date shifts the series
   start <- min(ll$date_hospital, na.rm = TRUE) - 10

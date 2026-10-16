@@ -15,7 +15,7 @@ An SEIR model with hospitalisation, death and vaccination, built for preparednes
 
 [**Influenza in Sweway**](https://gulfa.github.io/modelling_prep_ex/examples/influenza.html)
 follows one outbreak from beginning to end, and is the quickest way to see what
-the package does: a line list of a few hundred cases, the growth rate estimated
+the package does: a line list of about 1,250 cases, the growth rate estimated
 from hospital admissions, a transmission model fitted to those admissions,
 checks of the age and regional patterns the fit never saw, and projections under
 distancing, shielding the elderly and restricting travel between regions.
@@ -32,7 +32,7 @@ quarto publish gh-pages        # renders and publishes to GitHub Pages
 be sent as an attachment. Render against the *installed* package rather than
 `devtools::load_all()`: the loaded version is compiled without optimisation, and
 the two particle-MCMC fits then take several times longer. The document also
-needs `socialmixr` and `ciTools`.
+needs `sf`, `socialmixr`, `ciTools`, `dplyr` and `glue`.
 
 ## Installation
 
@@ -55,7 +55,8 @@ options(repos = c(mrcide = "https://mrc-ide.r-universe.dev",
 remotes::install_github("Gulfa/modelling_prep_ex")
 ```
 
-Maps need `sf`, which is optional: everything else works without it.
+Maps and `simulate_line_list()` need `sf`, which is optional: everything else
+works without it.
 
 For working on the model itself, see
 [`docs/modifying_the_model.md`](docs/modifying_the_model.md#development-setup).

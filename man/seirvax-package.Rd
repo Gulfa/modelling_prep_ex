@@ -7,8 +7,18 @@
 \title{seirvax: SEIR model with hospitalisation, death and vaccination}
 \description{
 Build a model with \code{\link[=build_model]{build_model()}}, run it with \code{\link[=run_model]{run_model()}}, and look at
-the results with \code{\link[=get_output]{get_output()}}, \code{summary()} and \code{plot()}. See
-\code{docs/model_description.md} for the model equations.
+the results with \code{\link[=get_output]{get_output()}}, \code{summary()} and \code{plot()}. The model
+equations are described in
+\url{https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/model_description.md}.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/Gulfa/modelling_prep_ex}
+  \item \url{https://gulfa.github.io/modelling_prep_ex/}
+  \item Report bugs at \url{https://github.com/Gulfa/modelling_prep_ex/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Gunnar Rø \email{gunnarroe@gmail.com}

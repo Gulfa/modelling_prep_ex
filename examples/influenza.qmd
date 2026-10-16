@@ -23,24 +23,25 @@ All information in this document is fake and intended for a pandemic
 preparedness exercise. Sweway is one of four fictional countries bundled with
 the package, each with five regions and population by five-year age band.
 
-This document works end to end on one outbreak. The scripts in `examples/`
+This document works end to end on one outbreak. The scripts in
+[`examples/`](https://github.com/Gulfa/modelling_prep_ex/tree/main/examples)
 take the same features one at a time, and are the place to look for the
 details behind each step:
 
 | | |
 |---|---|
-| `01_single_population.R` | one population, deterministic and stochastic runs, plot styles |
-| `02_age_structured.R` | age mixing, susceptibility, severity and vaccine effectiveness by age |
-| `03_age_and_region.R` | combining age and region mixing, seeding, interventions over time |
-| `04_scenarios.R` | comparing several scenarios with `compare_scenarios()` |
-| `05_fitting.R` | the three fitting methods, priors, diagnostics and projections |
-| `06_country_data.R` | the bundled country data, distances and maps |
-| `07_line_list_exercise.R` | generating exercise data and fitting R0 back from it |
+| [`01_single_population.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/01_single_population.R) | one population, deterministic and stochastic runs, plot styles |
+| [`02_age_structured.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/02_age_structured.R) | age mixing, susceptibility, severity and vaccine effectiveness by age |
+| [`03_age_and_region.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/03_age_and_region.R) | combining age and region mixing, seeding, interventions over time |
+| [`04_scenarios.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/04_scenarios.R) | comparing several scenarios with `compare_scenarios()` |
+| [`05_fitting.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/05_fitting.R) | the three fitting methods, priors, diagnostics and projections |
+| [`06_country_data.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/06_country_data.R) | the bundled country data, distances and maps |
+| [`07_line_list_exercise.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/07_line_list_exercise.R) | generating exercise data and fitting R0 back from it |
 
-`docs/model_description.md` has the equations and assumptions, and
-`docs/data.md` describes the bundled data.
+[`docs/model_description.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/model_description.md) has the equations and assumptions, and
+[`docs/data.md`](https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/data.md) describes the bundled data.
 
- The exercise uses the following geographical data:
+The exercise uses the following geographical data:
 
 ```{r}
 #| label: fig-geographical-data
@@ -193,7 +194,7 @@ its course.
 
 ## Simulating an influenza outbreak with seirvax
 
-`examples/01_single_population.R` and `examples/02_age_structured.R` build up
+[`examples/01_single_population.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/01_single_population.R) and [`examples/02_age_structured.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/02_age_structured.R) build up
 the same model step by step, with more detail on each argument.
 
 A model needs to know how many people there are, how they are grouped, and how
@@ -210,8 +211,9 @@ N
 ```
 
 Mixing matrix: the number of contacts per day between age groups. There is no
-contact survey for Sweway, so we borrow the POLYMOD survey from the United
-Kingdom, aggregated to the same four age groups.
+contact survey for Sweway, so we borrow the POLYMOD survey
+([Mossong et al. 2008](https://doi.org/10.1371/journal.pmed.0050074)) from the
+United Kingdom, aggregated to the same four age groups.
 
 
 ```{r}
@@ -241,7 +243,7 @@ plot(res, var = "H")
 
 ### Fitting R0 to the observed admissions
 
-`examples/05_fitting.R` covers the fitting machinery in more depth: what each
+[`examples/05_fitting.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/05_fitting.R) covers the fitting machinery in more depth: what each
 method does, how to change the priors, trace plots and other diagnostics, and
 what the uncertainty in a projection does and does not include.
 
@@ -271,8 +273,6 @@ observed_age_dist <- ll[hospitalised == TRUE,
                                               right = FALSE,
                                               labels = c("0-19", "20-44",
                                                          "45-64", "65+")))]
-observed_region_dist <- ll[hospitalised == TRUE, .N, by = .(region)]
-
 fit1 <- fit_model(model, data, pars = "R0", method = "optim")
 fit1
 
@@ -297,10 +297,6 @@ plot(fit3, seed = 1)
 plot(fit3, type = "distribution", by = "age", measure = "cum_hosp", seed = 1) +
   geom_errorbar(aes(x = band, y = N, ymin = N, ymax = N),
                 data = observed_age_dist, color = "red")
-
-# plot(fit3, type = "distribution", by = "region", measure = "cum_hosp", seed = 1) +
-#   geom_errorbar(aes(x = region, y = N, ymin = N, ymax = N),
-#                 data = observed_region_dist, color = "red")
 ```
 
 The match is poor, because of the assumed values for the hospitalisation
@@ -311,8 +307,8 @@ those assumptions rather than the fit.
 
 ## Scenarios
 
-`examples/04_scenarios.R` compares a set of scenarios in a few lines, and
-`examples/03_age_and_region.R` shows the difference between scaling contacts
+[`examples/04_scenarios.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/04_scenarios.R) compares a set of scenarios in a few lines, and
+[`examples/03_age_and_region.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/03_age_and_region.R) shows the difference between scaling contacts
 with `beta_schedule` and changing the mixing pattern with `mixing_schedule`.
 
 With a fitted model we can project forward and ask what different measures would
@@ -381,8 +377,8 @@ summary(comp2)[measure == "cum_hosp"]
 
 ## Adding regions
 
-`examples/03_age_and_region.R` sets out the age × region structure, and
-`examples/06_country_data.R` covers the bundled population data, the distances
+[`examples/03_age_and_region.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/03_age_and_region.R) sets out the age × region structure, and
+[`examples/06_country_data.R`](https://github.com/Gulfa/modelling_prep_ex/blob/main/examples/06_country_data.R) covers the bundled population data, the distances
 between regions and the maps.
 
 So far the whole country has been treated as one well-mixed population. The line

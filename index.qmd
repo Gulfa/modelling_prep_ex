@@ -9,7 +9,7 @@ preparedness exercises. The source is on
 ## The worked example
 
 [**Influenza in Sweway**](examples/influenza.qmd) follows one outbreak from
-beginning to end: a line list of a few hundred cases, the growth rate estimated
+beginning to end: a line list of about 1,250 cases, the growth rate estimated
 from hospital admissions, a transmission model fitted to those admissions,
 checks of the age and regional patterns the fit never saw, and projections under
 distancing, shielding the elderly and restricting travel between regions.

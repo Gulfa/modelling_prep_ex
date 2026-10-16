@@ -100,7 +100,7 @@ ll <- simulate_line_list("Sweway", R0 = 1.8, p_detect = 0.1,
   ```
 
   Anything else (`transmissibility`, `beta_schedule`, …) still goes through `...` to `build_model()`.
-- `n_seed`, `seed_region` and `seed_ages` control the seeding; `within` and `scale_km` the mixing between regions.
+- `n_seed`, `seed_region` and `seed_ages` control the seeding; `within` and `scale_km` the mixing between regions. The mixing comes from `region_distances()`, so `simulate_line_list()` needs `sf`.
 - If the seeded epidemic fades out, the function retries with a new draw (`max_tries`), and warns if it never takes off.
 
 **Dates** are reconstructed from the model's own timings, each drawn per case: infection to onset is the latent period, onset to admission (or to a community death) is the infectious period, and hospital stays average `dur_hosp`. Hospital deaths are drawn per admission, so they follow the model's death *rates* but not its daily death counts exactly.

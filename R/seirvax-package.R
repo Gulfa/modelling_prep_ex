@@ -1,8 +1,9 @@
 #' seirvax: SEIR model with hospitalisation, death and vaccination
 #'
 #' Build a model with [build_model()], run it with [run_model()], and look at
-#' the results with [get_output()], `summary()` and `plot()`. See
-#' `docs/model_description.md` for the model equations.
+#' the results with [get_output()], `summary()` and `plot()`. The model
+#' equations are described in
+#' <https://github.com/Gulfa/modelling_prep_ex/blob/main/docs/model_description.md>.
 #'
 #' @useDynLib seirvax, .registration = TRUE
 #' @import data.table
@@ -19,5 +20,5 @@ utils::globalVariables(c(".", "value", "variable", "time", "sim", "measure",
                          "profile", "area_km2", "density_per_km2",
                          "pop_total", ".value", "inc_infections", "inc_hosp",
                          "inc_deaths_comm", "date_onset", "date_hospital",
-                         "date_death", "died", "id", "age_group",
+                         "date_death", "died", "id",
                          "hospitalised", "vaccinated", "age_mid", "scenario"))

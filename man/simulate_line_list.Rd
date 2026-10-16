@@ -112,7 +112,9 @@ detected; other infections are detected with probability \code{p_detect}.
 }
 \details{
 The model runs at full detail (all five-year age bands and all regions of
-the country); \code{age_breaks} only controls how ages are reported.
+the country); \code{age_breaks} only controls how ages are reported. Mixing
+between regions comes from the distances between them, so this needs the
+\code{sf} package.
 
 The epidemiological parameters are arguments, with defaults describing a
 respiratory infection whose severity rises steeply with age. Each

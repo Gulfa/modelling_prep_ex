@@ -9,7 +9,10 @@ admissions_from_line_list(line_list, by = character(0), start_date = NULL)
 \arguments{
 \item{line_list}{A line list from \code{\link[=simulate_line_list]{simulate_line_list()}}.}
 
-\item{by}{Also split the series by \code{"region"} and/or \code{"age_group"}.}
+\item{by}{Also split the series by \code{"region"} and/or \code{"age"} (the line
+list's \code{age_group}). The split columns are named \code{region} and \code{age}, as
+\code{\link[=fit_model]{fit_model()}} expects; their labels must match the model's regions and
+age groups, so report the line list with the model's \code{age_breaks}.}
 
 \item{start_date}{Day 1 of the output. The default is the first admission.
 Pass the date the model should start from if you want the epidemic to be

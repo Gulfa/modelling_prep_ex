@@ -14,7 +14,9 @@
 #' detected; other infections are detected with probability `p_detect`.
 #'
 #' The model runs at full detail (all five-year age bands and all regions of
-#' the country); `age_breaks` only controls how ages are reported.
+#' the country); `age_breaks` only controls how ages are reported. Mixing
+#' between regions comes from the distances between them, so this needs the
+#' `sf` package.
 #'
 #' The epidemiological parameters are arguments, with defaults describing a
 #' respiratory infection whose severity rises steeply with age. Each
@@ -364,7 +366,10 @@ empty_line_list <- function(start_date) {
 #' column counting days from the start of the data, and `admissions`.
 #'
 #' @param line_list A line list from [simulate_line_list()].
-#' @param by Also split the series by `"region"` and/or `"age_group"`.
+#' @param by Also split the series by `"region"` and/or `"age"` (the line
+#'   list's `age_group`). The split columns are named `region` and `age`, as
+#'   [fit_model()] expects; their labels must match the model's regions and
+#'   age groups, so report the line list with the model's `age_breaks`.
 #' @param start_date Day 1 of the output. The default is the first admission.
 #'   Pass the date the model should start from if you want the epidemic to be
 #'   already running when the data begins.
@@ -380,11 +385,16 @@ empty_line_list <- function(start_date) {
 #' }
 admissions_from_line_list <- function(line_list, by = character(0),
                                       start_date = NULL) {
-  bad <- setdiff(by, c("region", "age_group"))
+  by[by == "age_group"] <- "age"   # the line list's name for it
+  by <- unique(by)
+  bad <- setdiff(by, c("region", "age"))
   if (length(bad) > 0) {
-    stop("'by' must be a subset of: region, age_group")
+    stop("'by' must be a subset of: region, age")
   }
   d <- as.data.table(line_list)[!is.na(date_hospital)]
+  if ("age" %in% by) {
+    set(d, j = "age", value = as.character(d$age_group))
+  }
   if (nrow(d) == 0) {
     stop("The line list has no hospital admissions")
   }
