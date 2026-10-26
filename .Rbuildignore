@@ -12,3 +12,4 @@
 ^_freeze$
 ^\.quarto$
 ^LICENSE\.md$
+^exercise_data$

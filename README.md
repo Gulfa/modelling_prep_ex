@@ -35,6 +35,11 @@ be sent as an attachment. Render against the *installed* package rather than
 the two particle-MCMC fits then take several times longer. The document also
 needs `sf`, `socialmixr`, `ciTools`, `dplyr` and `glue`.
 
+## Exercise data
+
+Data for the exercise will be put in [`exercise_data/`](exercise_data/) when the
+exercise starts.
+
 ## Installation
 
 ```r
