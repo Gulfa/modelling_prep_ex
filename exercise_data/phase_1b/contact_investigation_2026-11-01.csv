@@ -1,0 +1,67 @@
+contact_id,index_case_id,setting,age,vaccination_status,symptoms,symptom_onset_date,hospitalised,notified_case_id
+K001,C000001,household,1,unvaccinated,yes,2026-09-14,no,
+K002,C000001,household,9,unvaccinated,yes,2026-09-17,no,C000005
+K003,C000001,household,37,unvaccinated,yes,2026-09-15,no,
+K004,C000003,household,36,2 doses,yes,2026-09-20,no,C000006
+K005,C000004,household,23,2 doses,no (positive PCR or serology only),,no,
+K006,C000004,household,2,1 dose,no (positive PCR or serology only),,no,
+K007,C000005,school,8,2 doses,yes,2026-09-25,yes,C000008
+K008,C000005,school,10,2 doses,no (positive PCR or serology only),,no,
+K009,C000005,school,37,2 doses,yes,2026-09-23,no,C000007
+K010,C000005,school,8,unvaccinated,yes,2026-09-29,no,
+K011,C000005,school,6,unvaccinated,yes,2026-10-02,no,
+K012,C000005,school,11,2 doses,yes,2026-10-03,no,
+K013,C000005,school,12,2 doses,yes,2026-10-06,no,
+K014,C000005,school,14,2 doses,yes,2026-10-07,no,
+K015,C000005,school,13,unvaccinated,yes,2026-10-07,no,
+K016,C000005,school,9,2 doses,yes,2026-10-03,yes,C000013
+K017,C000007,school,8,2 doses,yes,2026-10-07,no,
+K018,C000008,household,35,2 doses,yes,2026-10-02,no,
+K019,C000008,household,15,unvaccinated,yes,2026-10-07,no,
+K020,C000009,household,22,2 doses,yes,2026-10-06,yes,C000016
+K021,C000009,workplace,20,2 doses,yes,2026-10-08,no,C000020
+K022,C000010,household,42,unvaccinated,yes,2026-10-07,no,
+K023,C000010,household,41,unvaccinated,yes,2026-10-10,no,
+K024,C000010,kindergarten,27,2 doses,yes,2026-10-02,no,
+K025,C000010,kindergarten,5,2 doses,yes,2026-10-04,yes,C000014
+K026,C000010,household,6,unvaccinated,yes,2026-10-09,no,
+K027,C000010,kindergarten,3,1 dose,yes,2026-10-11,no,
+K028,C000011,kindergarten,3,1 dose,yes,2026-10-05,no,
+K029,C000011,kindergarten,1,1 dose,yes,2026-10-09,no,
+K030,C000011,kindergarten,30,2 doses,yes,2026-10-14,no,
+K031,C000011,kindergarten,34,2 doses,yes,2026-10-13,no,
+K032,C000013,household,33,2 doses,yes,2026-10-08,no,
+K033,C000013,school,7,unvaccinated,yes,2026-10-12,yes,C000026
+K034,C000013,school,11,2 doses,yes,2026-10-14,no,
+K035,C000013,household,8,2 doses,yes,2026-10-15,no,
+K036,C000013,school,33,unvaccinated,yes,2026-10-20,no,
+K037,C000014,household,15,unvaccinated,yes,2026-10-10,no,
+K038,C000014,household,32,2 doses,yes,2026-10-15,yes,C000037
+K039,C000014,kindergarten,3,unvaccinated,yes,2026-10-16,no,
+K040,C000015,school,53,not offered (born before 1980),yes,2026-10-17,no,
+K041,C000016,university,21,2 doses,yes,2026-10-17,no,
+K042,C000016,university,19,unvaccinated,yes,2026-10-21,no,
+K043,C000017,household,43,2 doses,yes,2026-10-18,yes,C000040
+K044,C000018,household,34,unvaccinated,yes,2026-10-18,no,
+K045,C000018,household,25,unvaccinated,yes,2026-10-19,no,
+K046,C000018,school,13,2 doses,yes,2026-10-19,no,
+K047,C000018,school,29,unvaccinated,yes,2026-10-17,no,
+K048,C000018,household,8,unvaccinated,yes,2026-10-20,no,
+K049,C000018,school,15,2 doses,yes,2026-10-19,no,
+K050,C000018,school,9,2 doses,yes,2026-10-22,no,
+K051,C000019,household,36,unvaccinated,yes,2026-10-22,yes,C000054
+K052,C000019,household,18,2 doses,yes,2026-10-18,no,
+K053,C000019,household,1,unvaccinated,yes,2026-10-18,no,
+K054,C000020,household,29,2 doses,no (positive PCR or serology only),,no,
+K055,C000025,school,9,2 doses,yes,2026-10-23,no,C000093
+K056,C000026,household,43,unvaccinated,yes,2026-10-23,yes,C000062
+K057,C000026,household,14,unvaccinated,yes,2026-10-26,no,
+K058,C000026,school,14,2 doses,yes,2026-10-25,no,
+K059,C000026,school,6,2 doses,yes,2026-10-26,no,
+K060,C000027,kindergarten,5,2 doses,yes,2026-10-26,yes,C000114
+K061,C000029,household,30,2 doses,yes,2026-10-23,no,
+K062,C000029,kindergarten,5,2 doses,yes,2026-10-25,yes,C000109
+K063,C000029,kindergarten,2,1 dose,no (positive PCR or serology only),,no,
+K064,C000029,kindergarten,5,2 doses,no (positive PCR or serology only),,no,
+K065,C000029,kindergarten,1,1 dose,no (positive PCR or serology only),,no,
+K066,C000030,workplace,35,2 doses,no (positive PCR or serology only),,no,

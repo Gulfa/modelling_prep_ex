@@ -17,3 +17,15 @@ case in Sweway. Folder: [`phase_1/`](phase_1/)
 
 The demography of each country is bundled with the package: see
 [`docs/data.md`](../docs/data.md).
+
+## Phase 1b (1 November)
+
+New data, reported on 1 November. Folder: [`phase_1b/`](phase_1b/)
+
+- [`CT data explainer.pdf`](phase_1b/CT%20data%20explainer.pdf): how the contact
+  investigation was done, and what each column means.
+- [`contact_investigation_2026-11-01.csv`](phase_1b/contact_investigation_2026-11-01.csv):
+  the 66 contacts of the first 30 cases in Denden who tested positive, with or
+  without symptoms.
+- [`line_list_inject.csv`](phase_1b/line_list_inject.csv): the line list updated
+  to 1 November, with 136 cases (132 in Denden, 4 in Sweway).
