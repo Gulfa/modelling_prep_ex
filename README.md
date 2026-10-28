@@ -37,8 +37,12 @@ needs `sf`, `socialmixr`, `ciTools`, `dplyr` and `glue`.
 
 ## Exercise data
 
-Data for the exercise will be put in [`exercise_data/`](exercise_data/) when the
-exercise starts.
+Data for the exercise is in [`exercise_data/`](exercise_data/), added phase by
+phase.
+
+- **Phase 1 (25 October):** the handout, a line list of the 68 measles cases
+  recorded so far, and daily travel between the countries, in
+  [`exercise_data/phase_1/`](exercise_data/phase_1/).
 
 ## Installation
 
