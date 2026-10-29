@@ -46,6 +46,9 @@ phase.
 - **Phase 1b (1 November):** a contact investigation of the first 30 cases in
   Denden, and the line list updated to 1 November, in
   [`exercise_data/phase_1b/`](exercise_data/phase_1b/).
+- **Phase 2 (10 January 2027):** the handout, the line list updated to 10
+  January, a serosurvey from region D2 of Denden, and a contact matrix by age,
+  in [`exercise_data/phase_2/`](exercise_data/phase_2/).
 
 ## Installation
 
