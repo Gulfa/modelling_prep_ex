@@ -22,6 +22,8 @@ The demography of each country is bundled with the package: see
 
 New data, reported on 1 November. Folder: [`phase_1b/`](phase_1b/)
 
+- [`Phase 1b (inject) handout.pdf`](phase_1b/Phase%201b%20(inject)%20handout.pdf):
+  the situation on 2 November and the task, a six-month planning scenario.
 - [`CT data explainer.pdf`](phase_1b/CT%20data%20explainer.pdf): how the contact
   investigation was done, and what each column means.
 - [`contact_investigation_2026-11-01.csv`](phase_1b/contact_investigation_2026-11-01.csv):

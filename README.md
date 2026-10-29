@@ -43,7 +43,7 @@ phase.
 - **Phase 1 (25 October):** the handout, a line list of the 68 measles cases
   recorded so far, and daily travel between the countries, in
   [`exercise_data/phase_1/`](exercise_data/phase_1/).
-- **Phase 1b (1 November):** a contact investigation of the first 30 cases in
+- **Phase 1b (1 November):** the handout, a contact investigation of the first 30 cases in
   Denden, and the line list updated to 1 November, in
   [`exercise_data/phase_1b/`](exercise_data/phase_1b/).
 - **Phase 2 (10 January 2027):** the handout, the line list updated to 10
